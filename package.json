@@ -1,0 +1,27 @@
+{
+  "name": "distribucion-rutas",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "api",
+    "web"
+  ],
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "verify": "node scripts/verify.mjs",
+    "predev": "node scripts/setup.mjs",
+    "predev:api": "node scripts/setup.mjs",
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm run start:dev -w api",
+    "dev:web": "npm run dev -w web",
+    "build": "npm run build -w api && npm run build -w web",
+    "typecheck": "npm run typecheck -w api && npm run typecheck -w web",
+    "start": "npm run start -w api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}

@@ -1,0 +1,18 @@
+# Normaliza los finales de línea a LF para evitar diffs falsos
+# entre Windows, macOS y Linux.
+* text=auto eol=lf
+
+# Binarios: no tocar
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.woff  binary
+*.woff2 binary
+*.ttf  binary
+*.eot  binary
+*.zip  binary
+
+# Lockfile: generado, pero debe ir versionado
+package-lock.json -diff linguist-generated
