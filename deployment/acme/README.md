@@ -17,6 +17,11 @@ El script se copia fuera de las carpetas publicadas por IIS y del repositorio.
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deployment\acme\Preparar-DuckDns.ps1
 ```
 
+Si la entrada oculta solo recibe un caracter, agregue -DesdePortapapeles.
+El script esperara a que copie el token desde DuckDNS y pulse Enter. Lo leera
+directamente del portapapeles del servidor. Se valida que sea un UUID de 36
+caracteres antes de reemplazar el archivo cifrado existente.
+
 win-acme recibe los argumentos create/delete, Identifier, RecordName y Token.
 El Token de esos argumentos es el contenido TXT del desafio ACME. El token de
 cuenta DuckDNS se lee del archivo local cifrado.
