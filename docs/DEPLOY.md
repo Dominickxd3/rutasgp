@@ -1,225 +1,117 @@
-# Guía: publicar y consumir la API
+# Despliegue de Rutas GP en Windows Server
 
-Esta guía cubre los dos escenarios: **entregar el proyecto completo** para que
-otro equipo lo despliegue, y **publicar solo la API** para que la consuman
-desde otro backend.
+La aplicacion publica React y NestJS en el mismo puerto. Las rutas web usan /api
+en el mismo servidor. El arranque de produccion requiere API_KEY y los archivos
+compilados. La aplicacion utiliza la base SQL existente mediante ODBC Driver 17.
 
----
+## Requisitos
 
-## 1. Qué entregar
+- Windows Server compatible con Node.js 22 de 64 bits.
+- Node.js 22 LTS y npm, instalados para todos los usuarios.
+- Git.
+- Microsoft ODBC Driver 17 for SQL Server de 64 bits.
+- Acceso TCP al SQL Server configurado, actualmente 10.10.1.6:1433.
+- Salida a los servicios GPS, mapas y OSRM configurados.
+- Tablas y procedimientos de la aplicacion existentes en DB_GP_DistribucionML.
+  Los scripts SQL requieren revision y ejecucion administrativa independiente.
 
-### Escenario A — Publicar solo la API (recomendado para externos)
+## Instalacion
 
-Entregas únicamente:
+Ejecute PowerShell en el servidor.
 
-| Dato | Ejemplo |
-| --- | --- |
-| URL base | `https://flota.tudominio.com/api` |
-| Clave | `9f2c...` (por un canal seguro, no por correo) |
-| Documentación | `https://flota.tudominio.com/api/docs` |
-| Healthcheck | `https://flota.tudominio.com/api/health` |
-
-La otra persona **no ve tu código ni el `id_usuario` del GPS**.
-
-### Escenario B — Entregar el proyecto completo
-
-Entregas el repositorio **más** un `api/.env` real (o las credenciales del
-proveedor GPS por separado). Recuerda que `.gitignore` excluye `.env`: si
-mandas solo el repo por Git, no funcionará hasta que definan ese archivo.
-
-> ⚠️ Quien reciba el proyecto obtiene acceso a tu cuenta del proveedor GPS
-> (`id_usuario`). Si eso no es aceptable, usa el escenario A.
-
----
-
-## 2. Consumir la API
-
-### curl
-
-```bash
-curl -H "x-api-key: TU_CLAVE" \
-     https://flota.tudominio.com/api/fleet/units
+```powershell
+git clone https://github.com/Dominickxd3/rutasgp.git C:\apps\rutasgp
+Set-Location C:\apps\rutasgp
+npm ci
+Copy-Item api/.env.production.example api/.env.production
 ```
 
-### JavaScript / TypeScript (Node 18+)
+Edite api/.env.production. Configure API_KEY, GPS_DB_USER y GPS_DB_PASSWORD con
+los valores de esta instalacion. Defina CORS_ORIGIN con la URL de acceso si usa
+consumidores desde otro origen. PORT es 3000 inicialmente.
 
-```ts
-const res = await fetch('https://flota.tudominio.com/api/fleet/units', {
-  headers: { 'x-api-key': process.env.FLEET_API_KEY! },
-});
+Puede generar una clave con este comando y copiar el resultado a API_KEY.
 
-if (!res.ok) {
-  throw new Error(`HTTP ${res.status}`);
-}
-
-const snapshot = await res.json();
-console.log(snapshot.total, 'unidades');
+```powershell
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 ```
 
-### Python
+La arquitectura actual utiliza una clave compartida que tambien se incluye en
+el JavaScript del navegador. Esa clave permite acceso a la API y no representa
+una cuenta individual. Este procedimiento esta orientado a una instalacion en
+red interna con acceso controlado. El perfil y las geocercas locales se almacenan
+en el navegador de cada usuario. La asociacion automatica completa de pedidos,
+boletas y camiones continua con las limitaciones documentales de la version actual.
 
-```python
-import os
-import requests
+Compile con el mismo entorno que utilizara el servidor.
 
-res = requests.get(
-    "https://flota.tudominio.com/api/fleet/units",
-    headers={"x-api-key": os.environ["FLEET_API_KEY"]},
-    timeout=15,
-)
-res.raise_for_status()
-snapshot = res.json()
-print(snapshot["total"], "unidades")
+```powershell
+npm run typecheck
+npm test
+npm run build:production
+npm run verify:production
 ```
 
-### Notas de integración
+build:production pasa API_KEY al frontend durante la compilacion y fija /api como
+URL relativa. Al cambiar API_KEY vuelva a compilar. Los archivos .env y dist no se
+publican en Git. La comprobacion inicia temporalmente el servidor en 127.0.0.1:3197,
+con captura GPS desactivada, consulta el catalogo local de vehiculos y termina.
 
-- **No hace falta llamar cada segundo.** El snapshot se cachea 4 s por defecto;
-  un intervalo de 5–15 s es suficiente.
-- `refresh=true` fuerza consulta al GPS, pero el servidor aplica un mínimo de
-  1,5 s (`POLL_MIN_INTERVAL_MS`). Abusar de este parámetro no acelera nada.
-- Si `stale` es `true`, el proveedor GPS no respondió y estás viendo la última
-  posición conocida. El campo `warning` trae el detalle.
-- `cliente` puede ser `null`: significa que esa unidad nunca apareció en el
-  feed de posiciones actuales.
-- Los errores vienen en JSON con el formato estándar de NestJS:
-  `{ "statusCode": 401, "message": "...", "error": "Unauthorized" }`.
+Para iniciar en primer plano utilice npm start. La URL de acceso sera
+http://IP_DEL_SERVIDOR:3000 y el estado se consulta en /api/health.
 
-### Códigos de estado
+## Arranque permanente
 
-| Código | Significado |
-| --- | --- |
-| `200` | OK |
-| `401` | Falta la API key o es inválida |
-| `429` | Se superó el rate limit (`THROTTLE_LIMIT`) |
-| `503` | No hay cache y el proveedor GPS no responde |
+Abra PowerShell como administrador en C:\apps\rutasgp.
 
----
-
-## 3. Desplegar
-
-### 3.1 Docker (cualquier hosting)
-
-```bash
-docker build -f api/Dockerfile -t flota-api .
-
-docker run -d --name flota-api -p 3000:3000 \
-  -e API_KEY="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")" \
-  -e TRUST_PROXY=true \
-  -e FLEET_SOURCE_URL="http://gyztec.sergps.com/...&id_usuario=464&tipo_usuario=usuario&tipo=Ubicacion" \
-  flota-api
+```powershell
+.\deployment\windows\Install-RutasGP.ps1 -OpenFirewall
+Get-ScheduledTask -TaskName RutasGP
+Get-ScheduledTaskInfo -TaskName RutasGP
+Invoke-RestMethod http://localhost:3000/api/health
+Get-Content .\logs\application.log -Tail 50
 ```
 
-El contenedor corre como usuario `node` (no root) e incluye un `HEALTHCHECK`
-contra `/api/health`.
+El instalador registra una tarea RutasGP en el Programador de tareas de Windows.
+Utiliza la cuenta SYSTEM, se inicia al arrancar el servidor y reintenta hasta tres
+veces si el proceso falla. El lanzamiento utiliza Node de 64 bits y guarda stdout
+y stderr en logs/application.log. La carpeta debe permanecer en una ruta local
+accesible para SYSTEM.
 
-### 3.2 Railway / Render / Fly.io
+OpenFirewall crea una regla de entrada TCP para el puerto indicado, limitada a
+LocalSubnet en perfiles Domain y Private. Si cambia PORT en el entorno, indique
+el mismo valor con -Port. Una regla preexistente se conserva para revision del
+administrador. Administre el acceso externo y HTTPS con la infraestructura del
+servidor segun corresponda.
 
-1. Conecta el repositorio.
-2. **Root directory:** la raíz del repo (no `api/`).
-3. **Build command:** `npm run build -w api`
-4. **Start command:** `node api/dist/main`
-5. Define las variables de entorno del punto 4.
+El recolector conserva la frecuencia GPS configurada y se ejecuta en el backend.
+Su estado se controla con GPS_COLLECTION_ENABLED. GPS_EVIDENCE_ENABLED se activa
+cuando su migracion correspondiente haya sido aprobada y aplicada.
 
-Estos servicios ya ponen la app detrás de un proxy: define `TRUST_PROXY=true`
-para que el rate limit vea la IP real.
+## Actualizacion
 
-### 3.3 VPS con Nginx + systemd
-
-`/etc/systemd/system/flota-api.service`:
-
-```ini
-[Unit]
-Description=API de flota
-After=network.target
-
-[Service]
-WorkingDirectory=/opt/distribucion_rutas
-EnvironmentFile=/opt/distribucion_rutas/api/.env
-ExecStart=/usr/bin/node api/dist/main
-Restart=always
-User=www-data
-
-[Install]
-WantedBy=multi-user.target
+```powershell
+Set-Location C:\apps\rutasgp
+Stop-ScheduledTask -TaskName RutasGP
+git pull --ff-only
+npm ci
+npm run typecheck
+npm test
+npm run build:production
+npm run verify:production
+.\deployment\windows\Install-RutasGP.ps1
+Invoke-RestMethod http://localhost:3000/api/health
 ```
 
-```bash
-sudo systemctl enable --now flota-api
-```
+Conserve la revision anterior y su configuracion para recuperar una entrega si
+una actualizacion falla. Los cambios de datos y esquema requieren un plan propio.
+El instalador valida que una tarea anterior este detenida antes de reemplazarla.
 
----
+## Validacion en el servidor
 
-## 4. Nginx: HTTPS, API key y dashboard
-
-El dashboard web **no puede guardar una API key** (cualquiera la vería en el
-navegador). La solución es que Nginx la inyecte al hacer proxy. Así el navegador
-nunca ve la clave y la API sigue protegida para el resto del mundo.
-
-```nginx
-server {
-    listen 443 ssl;
-    server_name flota.tudominio.com;
-
-    ssl_certificate     /etc/letsencrypt/live/flota.tudominio.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/flota.tudominio.com/privkey.pem;
-
-    # Dashboard (React compilado)
-    root /var/www/flota;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # API para el dashboard: Nginx añade la clave.
-    # Requiere que este bloque esté protegido por tu propio login/VPN,
-    # porque quien llegue a /api obtendrá datos aunque no vea la clave.
-    location /api/ {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_set_header Host              $host;
-        proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header x-api-key         "TU_CLAVE";
-    }
-
-    # Documentación: opcional, puedes cerrarla al público.
-    location /api/docs {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_set_header Host $host;
-    }
-}
-```
-
-> Si no quieres que el dashboard quede accesible, protégelo con
-> `auth_basic` o restringe `location /` por IP/VPN.
-
----
-
-## 5. Generar y rotar la clave
-
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-- Guarda la clave en el gestor de secretos del hosting, **nunca en Git**.
-- Para rotarla: cambia `API_KEY`, reinicia el servicio y avisa al consumidor.
-  No hay downtime si el consumidor puede reintentar.
-- Para dar acceso a varias personas, pon varias claves separadas por coma y
-  compara contra la lista. (Hoy el guard soporta una sola; es el siguiente paso
-  natural si necesitas revocar accesos individualmente.)
-
----
-
-## 6. Checklist antes de publicar
-
-- [ ] `API_KEY` definida y con al menos 32 caracteres aleatorios.
-- [ ] HTTPS activo (el feed del GPS es HTTP, pero tu API debe ir por TLS).
-- [ ] `TRUST_PROXY=true` si hay Nginx/balanceador delante.
-- [ ] `CORS_ORIGIN` con dominios explícitos, nunca `*`.
-- [ ] `SWAGGER_ENABLED=false` si no quieres publicar la documentación.
-- [ ] `GET /api/health` responde `200`.
-- [ ] `GET /api/fleet/units` sin clave responde `401`.
-- [ ] El firewall solo expone 443 (y 80 para el redirect), nunca 3000.
-- [ ] Revisado que el `id_usuario` del GPS no aparezca en el frontend.
+Compruebe flota, historial, recorridos y Pedidos desde un navegador de la red.
+Las rutas React deben abrir directamente y soportar recarga. Confirme acceso a
+SQL Server y al Linked Server [10.10.1.3,1433] desde la base secundaria.
+La prueba de produccion revisa web, API, autenticacion, assets y lectura SQL. La
+instalacion de la tarea, firewall y conectividad desde otros equipos se verifica
+en el servidor de destino al ejecutar estos pasos.

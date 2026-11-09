@@ -1,6 +1,4 @@
-// Comprueba que la API esté levantada y devolviendo datos.
-// Uso:  npm run verify
-//       API_BASE_URL=http://localhost:3000 npm run verify
+
 const baseUrl = (process.env.API_BASE_URL ?? 'http://127.0.0.1:3000').replace(
   /\/+$/,
   '',

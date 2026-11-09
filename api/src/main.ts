@@ -7,6 +7,8 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 
 import { AppModule } from './app.module';
+import { resolve } from 'node:path';
+import { configureWebHost } from './production/web-host';
 
 function setupSwagger(app: NestExpressApplication, port: number): void {
   const document = SwaggerModule.createDocument(
@@ -34,6 +36,8 @@ function setupSwagger(app: NestExpressApplication, port: number): void {
         'api-key',
       )
       .addTag('fleet', 'Posiciones y estado de las unidades')
+      .addTag('history', 'Consulta paginada del historial GPS')
+      .addTag('geofences', 'Geocercas de sedes y eventos de entrada/salida')
       .addTag('health', 'Estado del servicio')
       .build(),
   );
@@ -54,6 +58,10 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService);
 
+  if (process.env.NODE_ENV === 'production' && !config.get<string>('apiKey')) {
+    throw new Error('Defina API_KEY en api/.env.production o en el entorno antes de iniciar producción.');
+  }
+
   app.setGlobalPrefix('api');
 
   if (config.get<boolean>('trustProxy', false)) {
@@ -66,10 +74,13 @@ async function bootstrap(): Promise<void> {
       .split(',')
       .map((origin) => origin.trim())
       .filter(Boolean),
-    methods: ['GET'],
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['x-api-key', 'authorization', 'content-type', 'accept'],
   });
   app.enableShutdownHooks();
+  if (config.get<boolean>('serveWeb', false)) {
+    configureWebHost(app, resolve(__dirname, '../../web/dist'));
+  }
 
   const port = config.get<number>('port', 3000);
 
@@ -77,19 +88,16 @@ async function bootstrap(): Promise<void> {
     setupSwagger(app, port);
   }
 
-  await app.listen(port);
+  await app.listen(port, config.get<string>('host', '0.0.0.0'));
 
   Logger.log(
     `API de flota disponible en http://localhost:${port}/api/fleet/units`,
     'Bootstrap',
   );
 
-  if (!config.get<string>('apiKey') && process.env.NODE_ENV === 'production') {
-    Logger.warn(
-      'API_KEY está vacía: la API es pública. Define API_KEY antes de exponerla.',
-      'Bootstrap',
-    );
-  }
 }
 
-void bootstrap();
+void bootstrap().catch(error => {
+  Logger.error(error instanceof Error ? error.message : String(error), 'Bootstrap');
+  process.exitCode = 1;
+});

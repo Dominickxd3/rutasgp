@@ -95,3 +95,19 @@ export function formatNumber(value: number | null, fractionDigits = 1): string {
     maximumFractionDigits: fractionDigits,
   }).format(value);
 }
+
+export function formatArea(squareMeters: number): string {
+  if (!Number.isFinite(squareMeters) || squareMeters <= 0) {
+    return '—';
+  }
+
+  if (squareMeters >= 1_000_000) {
+    return `${formatNumber(squareMeters / 1_000_000, 2)} km²`;
+  }
+
+  if (squareMeters >= 10_000) {
+    return `${formatNumber(squareMeters / 10_000, 2)} ha`;
+  }
+
+  return `${formatNumber(squareMeters, 0)} m²`;
+}

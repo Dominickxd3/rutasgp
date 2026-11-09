@@ -4,9 +4,15 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { ApiKeyGuard } from './common/guards/api-key.guard';
+import { CollectionModule } from './collection/collection.module';
 import configuration from './config/configuration';
+import { DatabaseModule } from './database/database.module';
 import { FleetModule } from './fleet/fleet.module';
+import { GeofencesModule } from './geofences/geofences.module';
 import { HealthController } from './health.controller';
+import { HistoryModule } from './history/history.module';
+import { TripsModule } from './trips/trips.module';
+import { OrdersModule } from './orders/orders.module';
 
 @Module({
   imports: [
@@ -14,7 +20,9 @@ import { HealthController } from './health.controller';
       isGlobal: true,
       cache: true,
       load: [configuration],
-      envFilePath: ['.env.local', '.env'],
+      envFilePath: process.env.NODE_ENV === 'production'
+        ? ['.env.production.local', '.env.production', '.env.local', '.env']
+        : ['.env.local', '.env'],
     }),
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
@@ -27,7 +35,13 @@ import { HealthController } from './health.controller';
         ],
       }),
     }),
+    DatabaseModule,
     FleetModule,
+    CollectionModule,
+    HistoryModule,
+    GeofencesModule,
+    TripsModule,
+    OrdersModule,
   ],
   controllers: [HealthController],
   providers: [

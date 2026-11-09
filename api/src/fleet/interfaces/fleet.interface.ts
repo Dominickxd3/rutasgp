@@ -9,6 +9,8 @@ export interface FleetUnit {
   estadoMotor: string;
   motorEncendido: boolean;
   velocidad: number;
+  velocidadOriginal: number | null;
+  orientacionOriginal: number | null;
   latitud: number;
   longitud: number;
   orientacion: number;

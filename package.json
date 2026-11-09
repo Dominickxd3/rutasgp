@@ -15,13 +15,20 @@
     "dev:api": "npm run start:dev -w api",
     "dev:web": "npm run dev -w web",
     "build": "npm run build -w api && npm run build -w web",
+    "build:production": "node scripts/build-production.mjs",
+    "verify:production": "node scripts/verify-production.mjs",
     "typecheck": "npm run typecheck -w api && npm run typecheck -w web",
-    "start": "npm run start -w api"
+    "test": "tsx --test api/src/**/*.test.ts web/src/**/*.test.ts",
+    "start": "node scripts/start-production.mjs"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "tsx": "^4.23.15"
   },
   "engines": {
     "node": ">=20.19"
+  },
+  "allowScripts": {
+    "msnodesqlv8@6.2.1": true
   }
 }

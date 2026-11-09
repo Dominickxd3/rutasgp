@@ -9,6 +9,24 @@ npm-debug.log*
 .env
 .env.local
 .env.*.local
+.env.*
+!.env.example
+!.env.*.example
+
+/scratch/
+/logs/
+/docs/capturas/
+/docs/planes_erp/
+/docs/RESULTADO_*.json
+/docs/PRUEBA_JOB_PEDIDOS_METRICAS.json
+/docs/*
+!/docs/DEPLOY.md
+/database/DIAGNOSTICO_*.sql
+/database/CONSULTA_*.sql
+/database/016_importar_pedido_1723263.sql
+/database/018_cargar_noviembre_2026.sql
+/database/019_verificar_carga_noviembre_2026.sql
+/=
 
 .DS_Store
 Thumbs.db

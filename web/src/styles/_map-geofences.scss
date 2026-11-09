@@ -1,0 +1,489 @@
+@use './tokens' as *;
+
+/* Map overlays                                                                */
+/* -------------------------------------------------------------------------- */
+
+.map-legend {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 500;
+  display: flex;
+  gap: 14px;
+  padding: 7px 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #334155;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  box-shadow: $shadow-soft;
+  backdrop-filter: blur(4px);
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+
+  &--on {
+    background: $green;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.16);
+  }
+
+  &--off {
+    background: #64748b;
+    box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.16);
+  }
+}
+
+.map-controls {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 500;
+  display: flex;
+  gap: 8px;
+
+  .p-button {
+    width: 36px;
+    height: 36px;
+    color: #334155;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: $shadow-soft;
+
+    &:enabled:hover {
+      color: $brand-strong;
+      background: #ffffff;
+    }
+  }
+
+  .map-control--active.p-button {
+    color: #1d4ed8;
+    background: #dbeafe;
+    box-shadow:
+      0 0 0 1px rgba(37, 99, 235, 0.35),
+      $shadow-soft;
+
+    &:enabled:hover {
+      color: #1e40af;
+      background: #bfdbfe;
+    }
+  }
+}
+
+.geofence-panel {
+  position: absolute;
+  top: 60px;
+  right: 14px;
+  z-index: 600;
+  width: 252px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.97);
+  border-radius: 14px;
+  box-shadow: $shadow;
+  backdrop-filter: blur(6px);
+}
+
+.geofence-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+
+  h2 {
+    margin: 1px 0 0;
+    font-size: 0.95rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+
+  .p-button {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    color: $muted;
+  }
+}
+
+.geofence-panel__list {
+  display: flex;
+  gap: 6px;
+  padding: 2px 0 10px;
+  overflow-x: auto;
+
+  button {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 9px;
+    color: #475569;
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 650;
+    background: #f1f5f9;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+
+    &:hover {
+      background: #e2e8f0;
+    }
+
+    &.is-active {
+      color: #1d4ed8;
+      background: #eff6ff;
+      border-color: #93c5fd;
+    }
+  }
+}
+
+.geofence-panel__eyebrow {
+  margin: 0;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: $brand-strong;
+}
+
+.geofence-panel__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: $muted;
+
+  .p-inputnumber {
+    width: 100%;
+  }
+
+  .p-inputtext {
+    width: 100%;
+    padding: 0.45rem 0.55rem;
+    font-size: 0.8rem;
+  }
+}
+
+.geofence-panel__stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 9px 0;
+  border-top: 1px solid #eef2f7;
+  border-bottom: 1px solid #eef2f7;
+
+  div {
+    min-width: 0;
+  }
+
+  dt {
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #94a3b8;
+  }
+
+  dd {
+    margin: 2px 0 0;
+    font-size: 0.78rem;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    color: #1e293b;
+
+    small {
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+  }
+
+  & > div:last-child dd {
+    font-size: 0.66rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: #475569;
+  }
+}
+
+.geofence-panel__tip {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: $muted;
+}
+
+.geofence-panel__meta {
+  margin: -4px 0 8px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.geofence-panel__shape-actions {
+  display: flex;
+  gap: 6px;
+
+  .p-button {
+    flex: 1;
+    justify-content: center;
+    padding: 0.45rem 0.5rem;
+    font-size: 0.76rem;
+  }
+}
+
+.geofence-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  .p-button {
+    flex: 1;
+    justify-content: center;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.74rem;
+  }
+}
+
+.geofence-hint {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  z-index: 600;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  max-width: min(92%, 560px);
+  padding: 8px 10px 8px 14px;
+  font-size: 0.76rem;
+  font-weight: 550;
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 999px;
+  box-shadow: $shadow;
+  transform: translateX(-50%);
+  backdrop-filter: blur(6px);
+
+  > i {
+    color: #2563eb;
+  }
+
+  span {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.geofence-hint__cancel {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  font-weight: 650;
+  color: #b91c1c;
+  background: #fee2e2;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+
+  &:hover {
+    background: #fecaca;
+  }
+}
+
+.geofence-hint__action {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  font-weight: 650;
+  color: #1d4ed8;
+  background: #dbeafe;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+
+  &:enabled:hover {
+    background: #bfdbfe;
+  }
+
+  &:disabled {
+    color: #94a3b8;
+    background: #f1f5f9;
+    cursor: not-allowed;
+  }
+}
+
+.geofence-hint__undo {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  font-weight: 650;
+  color: #475569;
+  background: #f1f5f9;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+
+  &:hover {
+    background: #e2e8f0;
+  }
+}
+
+/* Arrastrables de la geocerca (marcadores DOM de MapLibre). */
+.geofence-handle {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  background: #ffffff;
+  border: 3px solid #2563eb;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.3);
+  cursor: grab;
+  touch-action: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  &--center .geofence-handle__inner {
+    width: 6px;
+    height: 6px;
+    background: #2563eb;
+    border-radius: 50%;
+  }
+
+  &--radius {
+    width: 18px;
+    height: 18px;
+    background: #2563eb;
+    border-color: #ffffff;
+    box-shadow:
+      0 0 0 2px rgba(37, 99, 235, 0.35),
+      0 2px 8px rgba(15, 23, 42, 0.3);
+  }
+
+  &--radius .geofence-handle__inner {
+    width: 4px;
+    height: 4px;
+    background: #ffffff;
+    border-radius: 50%;
+  }
+
+  &--vertex {
+    width: 16px;
+    height: 16px;
+    background: #ffffff;
+    border-width: 3px;
+    border-color: #2563eb;
+  }
+
+  &--vertex .geofence-handle__inner {
+    width: 4px;
+    height: 4px;
+    background: #2563eb;
+    border-radius: 50%;
+  }
+
+  &--midpoint {
+    width: 12px;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.9);
+    border-width: 2px;
+    border-color: rgba(37, 99, 235, 0.75);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25);
+  }
+
+  &--midpoint .geofence-handle__inner {
+    width: 3px;
+    height: 3px;
+    background: #2563eb;
+    border-radius: 50%;
+    opacity: 0.7;
+  }
+
+  &--move {
+    width: 24px;
+    height: 24px;
+    background: #2563eb;
+    border-width: 3px;
+    border-color: #ffffff;
+    box-shadow:
+      0 0 0 2px rgba(37, 99, 235, 0.35),
+      0 2px 8px rgba(15, 23, 42, 0.3);
+  }
+
+  &--move .geofence-handle__inner {
+    width: 10px;
+    height: 10px;
+    background:
+      linear-gradient(#ffffff, #ffffff) center / 10px 2px no-repeat,
+      linear-gradient(#ffffff, #ffffff) center / 2px 10px no-repeat;
+  }
+
+  &--draft {
+    width: 16px;
+    height: 16px;
+    background: #ffffff;
+    border-width: 3px;
+    border-color: #f59e0b;
+  }
+
+  &--draft .geofence-handle__inner {
+    width: 4px;
+    height: 4px;
+    background: #f59e0b;
+    border-radius: 50%;
+  }
+}
+
+.map-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 900;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  background: rgba(241, 245, 249, 0.72);
+  backdrop-filter: blur(3px);
+}
+
+.map-overlay__card {
+  max-width: 330px;
+  padding: 26px 30px;
+  background: $surface;
+  border-radius: $radius-lg;
+  box-shadow: $shadow;
+
+  h2 {
+    margin: 12px 0 4px;
+    font-size: 1rem;
+    font-weight: 650;
+  }
+
+  p {
+    margin: 0 0 16px;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: $muted;
+  }
+}
+
+.map-overlay__icon {
+  font-size: 2rem;
+  color: $brand;
+}
+
+/* -------------------------------------------------------------------------- */

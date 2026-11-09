@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 
 import { normalizeFleet } from './fleet.mapper';
+import { ProviderEvidenceService } from './provider-evidence.service';
 import {
   FleetSnapshot,
   RawFleetUnit,
@@ -16,6 +17,12 @@ interface CachedSnapshot {
   fetchedAt: number;
 }
 
+export interface ProviderFleetResult {
+  units: FleetSnapshot['units'];
+  received: number;
+  invalid: number;
+}
+
 @Injectable()
 export class FleetService {
   private readonly logger = new Logger(FleetService.name);
@@ -24,7 +31,7 @@ export class FleetService {
   private inFlight: Promise<FleetSnapshot> | null = null;
   private lastAttemptAt = 0;
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(private readonly config: ConfigService, private readonly evidence: ProviderEvidenceService) {}
 
   async getFleet(forceRefresh = false): Promise<FleetSnapshot> {
     const now = Date.now();
@@ -57,18 +64,27 @@ export class FleetService {
     return this.inFlight;
   }
 
+  async getProviderFleet(): Promise<ProviderFleetResult> {
+    const [rawUnits, liveUnits] = await Promise.all([
+      this.fetchJson('fleet.sourceUrl', 'FLEET_SOURCE_URL'),
+      this.fetchLiveUnits(),
+    ]);
+
+    this.rememberClients(liveUnits);
+    const units = normalizeFleet(rawUnits, this.clientByUnit);
+
+    return {
+      units,
+      received: rawUnits.length,
+      invalid: Math.max(0, rawUnits.length - units.length),
+    };
+  }
+
   private async refresh(): Promise<FleetSnapshot> {
     this.lastAttemptAt = Date.now();
 
     try {
-      const [rawUnits, liveUnits] = await Promise.all([
-        this.fetchJson('fleet.sourceUrl', 'FLEET_SOURCE_URL'),
-        this.fetchLiveUnits(),
-      ]);
-
-      this.rememberClients(liveUnits);
-
-      const units = normalizeFleet(rawUnits, this.clientByUnit);
+      const { units } = await this.getProviderFleet();
       const moving = units.filter((unit) => unit.velocidad > 0).length;
 
       const snapshot: FleetSnapshot = {
@@ -165,11 +181,14 @@ export class FleetService {
       signal: AbortSignal.timeout(timeoutMs),
     });
 
+    const receivedAt = new Date();
+    const body = await response.text();
+    await this.evidence.preserve(body, receivedAt, response.status);
     if (!response.ok) {
       throw new Error(`el proveedor respondió HTTP ${response.status}`);
     }
 
-    const payload: unknown = await response.json();
+    const payload: unknown = JSON.parse(body);
 
     if (!Array.isArray(payload)) {
       throw new Error('la respuesta del proveedor no es un arreglo JSON');

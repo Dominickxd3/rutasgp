@@ -1,0 +1,316 @@
+@use './tokens' as *;
+
+/* Paneles de Pestaña en Sidebar                                              */
+/* -------------------------------------------------------------------------- */
+
+.geofence-sidebar-panel,
+.history-custom-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: $surface;
+  border-radius: $radius-lg;
+  box-shadow: $shadow;
+
+  .history-panel__body,
+  .geofence-sidebar-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
+.history-departure-notice {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  font-size: 0.72rem;
+  color: #334155;
+  line-height: 1.35;
+
+  i {
+    font-size: 1rem;
+    color: #64748b;
+    margin-top: 1px;
+    flex-shrink: 0;
+  }
+
+  strong {
+    display: block;
+    color: #0f172a;
+    font-size: 0.75rem;
+    margin-bottom: 2px;
+  }
+
+  small {
+    display: block;
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 0.65rem;
+  }
+}
+
+.history-departure-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+
+  &.is-observed {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+
+    i {
+      color: #059669;
+    }
+  }
+}
+
+.history-map-matching,
+.history-stop-criteria {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 8px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: #334155;
+  background: #f1f5f9;
+
+  strong,
+  small { grid-column: 1 / -1; }
+  small { color: #64748b; }
+}
+
+.history-map-matching.is-applied { background: #ecfdf5; color: #047857; }
+.history-map-matching.is-estimated { background: #fff7ed; color: #c2410c; }
+
+.history-stop-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.history-stop-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.72rem;
+  color: #1e293b;
+
+  small {
+    font-size: 0.62rem;
+    color: #64748b;
+  }
+}
+
+.history-stop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-stop-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-left: 3px solid #f59e0b;
+  border-radius: 6px;
+  background: #fffbeb;
+  font-size: 0.68rem;
+  color: #334155;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #fef3c7;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+}
+
+.history-stop-card__top {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-stop-card__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: #1e293b;
+
+  i {
+    color: #d97706;
+  }
+}
+
+.history-stop-card__duration {
+  margin-left: auto;
+  font-weight: 700;
+  color: #b45309;
+}
+
+.history-stop-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.history-stop-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+
+  &.is-observada {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+  }
+
+  &.is-probable {
+    background: #fff7ed;
+    color: #9a3412;
+    border: 1px solid #fed7aa;
+  }
+
+  &.is-sede {
+    background: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+  }
+
+  &.is-cliente {
+    background: #fdf4ff;
+    color: #86198f;
+    border: 1px solid #f0abfc;
+  }
+
+  &.is-ruta {
+    background: #f8fafc;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+  }
+
+  &.is-conf-alta {
+    background: #dcfce7;
+    color: #15803d;
+  }
+
+  &.is-conf-media {
+    background: #fef9c3;
+    color: #854d0e;
+  }
+
+  &.is-conf-baja {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+}
+
+.history-stop-card__metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 3px 6px;
+  font-size: 0.62rem;
+  color: #475569;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.65);
+  border-radius: 4px;
+
+  strong {
+    color: #1e293b;
+    font-weight: 600;
+  }
+}
+
+.history-stop-card__note {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.58rem;
+  color: #78350f;
+  background: #fef3c7;
+  padding: 3px 6px;
+  border-radius: 4px;
+
+  i {
+    color: #b45309;
+    font-size: 0.7rem;
+  }
+}
+
+.history-stop-card__reason {
+  font-size: 0.58rem;
+  color: #64748b;
+  font-style: italic;
+  padding-left: 2px;
+}
+
+.trip-card__origin-warning {
+  margin: 7px 0 0;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.62rem;
+  line-height: 1.35;
+}
+
+.trip-live-update {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 0.66rem;
+  font-weight: 650;
+
+  .pulse-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #22c55e;
+    animation: pulse-green 1.5s infinite;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+
+.geofence-appearance {
+  display: grid; gap: 12px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc;
+  label { display: grid; gap: 6px; font-size: .8rem; color: #475569; min-width: 0; }
+  .p-inputtext, .p-dropdown { width: 100%; min-width: 0; }
+  .p-selectbutton { display: flex; .p-button { flex: 1; font-size: .72rem; padding: 9px 5px; justify-content: center; } }
+  &__row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 12px; align-items: start; }
+  &__color { display: flex; gap: 6px; align-items: center; min-height: 40px; font-size: .65rem; }
+  .p-colorpicker { flex: 0 0 36px; width: 36px; }
+  .p-colorpicker .p-colorpicker-preview { width: 36px; height: 36px; padding: 0; }
+  small { color: #64748b; font-size: .7rem; line-height: 1.5; }
+}
+.geofence-sidebar-body > * { flex-shrink: 0; }

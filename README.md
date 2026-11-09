@@ -1,10 +1,16 @@
 # Monitoreo de flota en tiempo real
 
-Adaptación del visor Leaflet original a una aplicación tipada:
+Adaptación del visor original a una aplicación tipada:
 
 - **API:** NestJS + Node.js + TypeScript (proxy, normalización y cache del feed GPS)
-- **Web:** React 18 + TypeScript + SCSS + PrimeReact + Leaflet
-- **Mapa:** OpenStreetMap
+- **Web:** React 18 + TypeScript + SCSS + PrimeReact + MapLibre GL JS
+- **Mapa:** OpenFreeMap (estilo vectorial Liberty) con datos de OpenStreetMap
+
+## Despliegue en Windows Server
+
+La version actual publica el tablero React y la API NestJS desde el mismo servicio.
+Configure api/.env.production, ejecute npm run build:production y npm start.
+El instalador de arranque y los pasos completos estan en [la guia de despliegue](docs/DEPLOY.md).
 
 ## Arquitectura
 
@@ -17,12 +23,46 @@ El frontend nunca llama al servidor GPS directamente. Esto evita el bloqueo por
 CORS/mixed content (el feed es HTTP), oculta el `id_usuario` y permite cachear
 las respuestas cuando varios operadores tienen el tablero abierto.
 
+### Mapa
+
+El módulo usa **MapLibre GL JS** con el estilo vectorial
+`https://tiles.openfreemap.org/styles/liberty`. La vista inicial se centra en
+**Grupo Pecuario S.A.C., Av. Canto Bello 177, San Juan de Lurigancho 15408,
+Lima, Perú** a zoom **16**, inclinación **0°** y orientación **0°**.
+
+La URL del estilo y la vista inicial se configuran en `web/.env` (creado por
+`npm run setup` a partir de `web/.env.example`):
+
+```dotenv
+VITE_MAP_STYLE_URL=https://tiles.openfreemap.org/styles/liberty
+VITE_MAP_CENTER_LAT=-11.9805473
+VITE_MAP_CENTER_LNG=-77.0138466
+VITE_MAP_ZOOM=16
+VITE_MAP_PITCH=0
+VITE_MAP_BEARING=0
+```
+
+Al cambiar `VITE_MAP_STYLE_URL` se puede usar otro proveedor compatible con
+MapLibre (por ejemplo MapTiler) sin modificar los componentes. Si la variable no
+se define, la aplicación usa OpenFreeMap Liberty por defecto.
+
+OpenFreeMap no exige API key ni tarjeta para el uso inicial, pero **no implica
+que toda la infraestructura sea gratuita e ilimitada**: el software libre, los
+servicios públicos, el alojamiento y el tráfico tienen costos operativos y
+condiciones de uso. No se descargan mosaicos masivamente y la atribución del
+estilo y de OpenStreetMap se mantiene visible en el mapa.
+
 ### Endpoints
 
 | Método | Ruta | Auth | Descripción |
 | --- | --- | --- | --- |
 | `GET` | `/api/fleet/units` | API key | Snapshot de la flota |
 | `GET` | `/api/fleet/units?refresh=true` | API key | Fuerza consulta al GPS |
+| `GET` | `/api/trips?date=YYYY-MM-DD` | API key | Recorridos consolidados por fecha |
+| `POST` | `/api/trips/consolidate` | API key | Reconsolida recorridos y paradas (idempotente) |
+| `GET` | `/api/trips/audit` | API key | Auditoría de integridad de recorridos y paradas |
+| `GET` | `/api/trips/{id}/stops` | API key | Paradas y evidencia de un recorrido |
+| `GET` | `/api/trips/stops/sample?date=...` | API key | Muestra estratificada para validación manual |
 | `GET` | `/api/health` | pública | Healthcheck |
 | `GET` | `/api/docs` | pública | Swagger UI |
 | `GET` | `/api/docs-json` | pública | Contrato OpenAPI 3 |
@@ -97,7 +137,7 @@ Errores: `401` clave ausente/incorrecta, `429` rate limit excedido.
 
 ```bash
 npm install          # en la raíz, no dentro de api/ ni web/
-npm run setup        # crea api/.env desde api/.env.example (Windows-friendly)
+npm run setup        # crea api/.env y web/.env si no existen (Windows-friendly)
 npm run dev
 ```
 
@@ -115,7 +155,7 @@ Comprueba que todo responde con `npm run verify`.
 
 | Comando            | Descripción                             |
 | ------------------ | --------------------------------------- |
-| `npm run setup`    | Crea `api/.env` si no existe            |
+| `npm run setup`    | Crea `api/.env` y `web/.env` si no existen |
 | `npm run dev`      | API con watch + Vite en paralelo        |
 | `npm run verify`   | Comprueba que la API responde           |
 | `npm run build`    | Compila NestJS y el bundle de React     |
@@ -146,6 +186,22 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
 Si el proveedor cambia de usuario o endpoint, solo se edita `FLEET_SOURCE_URL`.
+
+## Variables de entorno del mapa (`web/.env`)
+
+| Variable                | Default | Descripción |
+| ----------------------- | ------- | ----------- |
+| `VITE_MAP_STYLE_URL`    | `https://tiles.openfreemap.org/styles/liberty` | Estilo vectorial de MapLibre |
+| `VITE_MAP_CENTER_LAT`   | `-11.9805473` | Latitud inicial (Grupo Pecuario S.A.C.) |
+| `VITE_MAP_CENTER_LNG`   | `-77.0138466` | Longitud inicial (Grupo Pecuario S.A.C.) |
+| `VITE_MAP_ZOOM`         | `16`    | Zoom inicial |
+| `VITE_MAP_PITCH`        | `0`     | Inclinación inicial en grados |
+| `VITE_MAP_BEARING`      | `0`     | Orientación inicial en grados |
+
+Todas son opcionales: si no existe `web/.env`, la aplicación usa estos valores
+por defecto. El cambio de proveedor de mapas se hace solo con
+`VITE_MAP_STYLE_URL`. Vite incorpora estas variables en tiempo de compilación,
+así que después de cambiarlas hay que volver a ejecutar `npm run build`.
 
 ## Producción
 

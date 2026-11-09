@@ -46,8 +46,9 @@ Después crea el archivo de configuración:
 npm run setup
 ```
 
-Esto copia `api/.env.example` a `api/.env` y **no sobrescribe** nada si ya
-existe. En Windows no hace falta usar `copy` ni `cp`.
+Esto copia `api/.env.example` a `api/.env` y `web/.env.example` a `web/.env`.
+**No sobrescribe** nada si los archivos ya existen. En Windows no hace falta
+usar `copy` ni `cp`.
 
 ---
 
@@ -164,7 +165,7 @@ Para Docker, Nginx con HTTPS y despliegue en Railway/Render/VPS, consulta
 │   │   └── common/       # Guards y decoradores
 │   ├── .env.example      # Plantilla de configuración
 │   └── Dockerfile
-├── web/                  # Tablero React + Leaflet
+├── web/                  # Tablero React + MapLibre GL JS
 ├── scripts/              # setup.mjs y verify.mjs
 ├── docs/DEPLOY.md        # Guía de despliegue
 └── package.json          # Raíz del monorepo
@@ -176,7 +177,7 @@ Para Docker, Nginx con HTTPS y despliegue en Railway/Render/VPS, consulta
 
 | Comando | Qué hace |
 | --- | --- |
-| `npm run setup` | Crea `api/.env` si no existe |
+| `npm run setup` | Crea `api/.env` y `web/.env` si no existen |
 | `npm run dev` | API + web en modo desarrollo |
 | `npm run verify` | Comprueba que la API responde |
 | `npm run build` | Compila API y web |

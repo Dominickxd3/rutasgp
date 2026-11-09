@@ -1,0 +1,473 @@
+@use './tokens' as *;
+
+/* -------------------------------------------------------------------------- */
+/* Panel de Recorridos Consolidados (Daily Trips Panel - Despachos y Rutas)   */
+/* -------------------------------------------------------------------------- */
+
+.daily-trips-panel {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.daily-trips-header {
+  padding: 16px 16px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+  background: #ffffff;
+}
+
+.daily-trips-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.daily-trips-title {
+  margin: 0;
+  font-size: 1.12rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.daily-trips-date-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.daily-trips-date-input {
+  padding: 5px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 500;
+  transition: all 0.15s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #0284c7;
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+  }
+}
+
+.daily-trips-sync-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0284c7;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: #f0f9ff;
+    border-color: #0284c7;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  i {
+    font-size: 0.85rem;
+  }
+}
+
+/* Search Wrap */
+
+.daily-trips-search-wrap {
+  position: relative;
+  width: 100%;
+
+  .search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 0.82rem;
+    pointer-events: none;
+  }
+
+  .daily-trips-search-input {
+    width: 100%;
+    padding: 7px 28px 7px 32px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    background: #f8fafc;
+    color: #0f172a;
+    transition: all 0.15s ease;
+
+    &:focus {
+      outline: none;
+      background: #ffffff;
+      border-color: #0284c7;
+      box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.12);
+    }
+  }
+
+  .clear-search-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 0.72rem;
+    cursor: pointer;
+    padding: 2px;
+
+    &:hover {
+      color: #0f172a;
+    }
+  }
+}
+
+/* Actionable Segment Tabs */
+
+.daily-trips-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 8px;
+  gap: 3px;
+}
+
+.trips-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    color: #0f172a;
+  }
+
+  &.is-active {
+    background: #ffffff;
+    color: #0f172a;
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+
+    .tab-badge {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+
+    .tab-badge.is-active-badge {
+      background: #dcfce7;
+      color: #15803d;
+    }
+  }
+
+  .tab-badge {
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.06);
+    color: #64748b;
+    font-size: 0.68rem;
+    font-weight: 600;
+  }
+}
+
+/* Subtle Summary Line */
+
+.daily-trips-summary-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: #64748b;
+  font-weight: 500;
+
+  .dot-sep {
+    color: #cbd5e1;
+    font-size: 0.8rem;
+  }
+}
+
+/* Trips List Container */
+
+.daily-trips-list-container {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  &::-webkit-scrollbar {
+    width: 5px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+}
+
+.trips-error-banner {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 0.76rem;
+}
+
+.trip-live-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.74rem;
+  font-weight: 500;
+
+  .pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #2563eb;
+    box-shadow: 0 0 6px #2563eb;
+  }
+}
+
+.trips-empty-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 16px;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  text-align: center;
+
+  i {
+    font-size: 1.5rem;
+  }
+}
+
+/* Trip Record Card */
+
+.trip-record-card {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+
+  &.is-selected {
+    border-color: #0284c7;
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
+  }
+}
+
+.trip-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.trip-card-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trip-truck-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+
+  .pi {
+    font-size: 1.05rem;
+    color: #1d4ed8;
+    line-height: 1;
+    display: block;
+  }
+}
+
+.trip-truck-icon-img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  display: block;
+}
+
+.trip-plate-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.trip-card-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trip-status-pill {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+
+  &--active {
+    background: #dcfce7;
+    color: #15803d;
+  }
+
+  &--done {
+    background: #f1f5f9;
+    color: #64748b;
+  }
+}
+
+.trip-arrow-icon {
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+/* Trip Metrics Row */
+
+.trip-card-metrics-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  font-size: 0.74rem;
+  color: #64748b;
+}
+
+.metric-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+
+  i {
+    color: #94a3b8;
+    font-size: 0.8rem;
+  }
+}
+
+.metric-progress-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.progress-pct-text {
+  font-weight: 700;
+  color: #16a34a;
+  font-size: 0.72rem;
+}
+
+.progress-bar-bg {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: #22c55e;
+}
+
+/* Trip Actions Row */
+
+.trip-card-actions-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.trip-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  border: 1px solid #bae6fd;
+  background: #f0f9ff;
+  color: #0284c7;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: #e0f2fe;
+    color: #0369a1;
+  }
+
+  &.is-active-btn {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+  }
+
+  &--play {
+    border-color: #e2e8f0;
+    background: #ffffff;
+    color: #475569;
+
+    &:hover {
+      background: #f8fafc;
+      color: #0f172a;
+    }
+  }
+}

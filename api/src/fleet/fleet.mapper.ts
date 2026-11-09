@@ -75,6 +75,8 @@ function mapUnit(
       estadoNormalizado.includes('activo') ||
       estadoNormalizado === 'on',
     velocidad,
+    velocidadOriginal: toNumber(raw.speed),
+    orientacionOriginal: toNumber(raw.orientacion),
     latitud,
     longitud,
     orientacion: ((orientacion % 360) + 360) % 360,
@@ -99,7 +101,11 @@ export function normalizeFleet(
     }
 
     // El proveedor puede repetir una unidad: nos quedamos con la última lectura.
-    byUnitId.set(unit.idUnidad, unit);
+    const previous = byUnitId.get(unit.idUnidad);
+    // El formato local del proveedor es ISO ordenable; prevalece la fecha mayor.
+    if (!previous || (unit.fecha ?? '') > (previous.fecha ?? '')) {
+      byUnitId.set(unit.idUnidad, unit);
+    }
   }
 
   return [...byUnitId.values()].sort((a, b) =>

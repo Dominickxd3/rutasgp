@@ -1,13 +1,20 @@
-$bg: #eef2f7;
+$bg: #0c0e14;
 $surface: #ffffff;
 $ink: #0f172a;
 $muted: #64748b;
-$line: #dbe3ee;
+$line: #e2e8f0;
 $brand: #0ea5e9;
 $brand-strong: #0369a1;
 $green: #16a34a;
 $red: #dc2626;
 $amber: #f59e0b;
+
+// Dark Sidebar Tokens
+$sidebar-dark-bg: #0c0e14;
+$sidebar-dark-border: rgba(255, 255, 255, 0.08);
+$sidebar-dark-item-active: #1c202a;
+$sidebar-dark-text-muted: #8b92a5;
+$sidebar-dark-text-active: #ffffff;
 
 $radius-lg: 18px;
 $radius-md: 12px;
@@ -16,7 +23,8 @@ $radius-sm: 8px;
 $shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
 $shadow-soft: 0 4px 12px rgba(15, 23, 42, 0.08);
 
-$header-height: 76px;
-$sidebar-width: 400px;
+$sidebar-width: 268px;
+$sidebar-collapsed-width: 68px;
+$content-panel-width: 380px;
 
 $font-stack: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
