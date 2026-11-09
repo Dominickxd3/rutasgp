@@ -1,5 +1,10 @@
 # Despliegue de Rutas GP en Windows Server
 
+Para la instalacion como servicio Windows en el puerto 3002, siga
+[daemon/README.md](../daemon/README.md). Ese servicio usa el comando de arranque
+del proyecto y admite api/.env. La tarea programada descrita mas adelante es
+un mecanismo alternativo y debe permanecer detenida al utilizar el servicio.
+
 La aplicacion publica React y NestJS en el mismo puerto. Las rutas web usan /api
 en el mismo servidor. El arranque de produccion requiere API_KEY y los archivos
 compilados. La aplicacion utiliza la base SQL existente mediante ODBC Driver 17.

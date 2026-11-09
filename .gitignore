@@ -15,6 +15,11 @@ npm-debug.log*
 
 /scratch/
 /logs/
+/daemon/*.exe
+/daemon/*.xml
+!/daemon/*.template.xml
+/daemon/*.download
+/daemon/logs/
 /docs/capturas/
 /docs/planes_erp/
 /docs/RESULTADO_*.json

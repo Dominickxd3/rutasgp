@@ -1,0 +1,21 @@
+<service>
+  <id>DistribucionRutas</id>
+  <name>Grupo Pecuario - Distribucion Rutas</name>
+  <description>Web, API y captura GPS de distribucion. Puerto 3002.</description>
+  <executable>__NODE_PATH__</executable>
+  <arguments>"%BASE%\..\scripts\start-production.mjs"</arguments>
+  <workingdirectory>%BASE%\..</workingdirectory>
+  <env name="NODE_ENV" value="production" />
+  <env name="HOST" value="0.0.0.0" />
+  <env name="PORT" value="3002" />
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <onfailure action="restart" delay="30 sec" />
+  <resetfailure>1 hour</resetfailure>
+  <stoptimeout>60 sec</stoptimeout>
+  <logpath>%BASE%\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+</service>
