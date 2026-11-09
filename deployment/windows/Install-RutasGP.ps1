@@ -15,7 +15,13 @@ $nodePath = (Get-Command node.exe -ErrorAction Stop).Source
 if (-not (Get-OdbcDriver -Name 'ODBC Driver 17 for SQL Server' -Platform '64-bit' -ErrorAction SilentlyContinue)) {
     throw 'Instale Microsoft ODBC Driver 17 for SQL Server de 64 bits.'
 }
-foreach ($relativePath in @('api\.env.production','api\dist\main.js','web\dist\index.html')) {
+$hasEnvironment = @('api\.env.production.local','api\.env.production','api\.env.local','api\.env') | Where-Object {
+    Test-Path -LiteralPath (Join-Path $resolvedRoot $_)
+}
+if (-not $hasEnvironment) {
+    throw 'Falta api\.env o api\.env.production. Configure el entorno primero.'
+}
+foreach ($relativePath in @('api\dist\main.js','web\dist\index.html')) {
     if (-not (Test-Path -LiteralPath (Join-Path $resolvedRoot $relativePath))) {
         throw "Falta $relativePath. Configure y compile la aplicacion primero."
     }

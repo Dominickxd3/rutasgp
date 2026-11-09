@@ -17,6 +17,9 @@ compilados. La aplicacion utiliza la base SQL existente mediante ODBC Driver 17.
 
 ## Instalacion
 
+Tambien puede usar api/.env existente. Cuando no hay archivos .env.production,
+los comandos de produccion cargan api/.env.local y api/.env. API_KEY debe tener valor.
+
 Ejecute PowerShell en el servidor.
 
 ```powershell
