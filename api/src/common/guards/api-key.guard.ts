@@ -8,10 +8,13 @@ import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { createHash, timingSafeEqual } from 'node:crypto';
 
+import { verifyMobileToken } from '../auth/mobile-token';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 interface IncomingRequest {
   headers: Record<string, string | string[] | undefined>;
+  path?: string;
+  method?: string;
 }
 
 /**
@@ -22,25 +25,18 @@ function digest(value: string): Buffer {
   return createHash('sha256').update(value, 'utf8').digest();
 }
 
-function readApiKey(request: IncomingRequest): string | null {
-  const header = request.headers['x-api-key'];
-  const fromHeader = Array.isArray(header) ? header[0] : header;
-
-  if (typeof fromHeader === 'string' && fromHeader.trim().length > 0) {
-    return fromHeader.trim();
-  }
-
+function readBearer(request: IncomingRequest): string | null {
   const authorization = request.headers.authorization;
 
-  if (typeof authorization === 'string') {
-    const [scheme, token] = authorization.split(' ');
-
-    if (scheme?.toLowerCase() === 'bearer' && token?.trim()) {
-      return token.trim();
-    }
+  if (typeof authorization !== 'string') {
+    return null;
   }
 
-  return null;
+  const [scheme, token] = authorization.split(' ');
+
+  return scheme?.toLowerCase() === 'bearer' && token?.trim()
+    ? token.trim()
+    : null;
 }
 
 /**
@@ -62,26 +58,36 @@ export class ApiKeyGuard implements CanActivate {
       return true;
     }
 
+    const request = context.switchToHttp().getRequest<IncomingRequest>();
     const expected = this.config.get<string>('apiKey')?.trim();
+    const header = request.headers['x-api-key'];
+    const provided = Array.isArray(header) ? header[0] : header;
+
+    if (
+      expected &&
+      typeof provided === 'string' &&
+      provided.trim().length > 0 &&
+      timingSafeEqual(digest(provided.trim()), digest(expected))
+    ) {
+      return true;
+    }
+
+    // La app móvil no lleva la API key: envía el token firmado del login.
+    const bearer = readBearer(request);
+    const authSecret = this.config.get<string>('auth.secret', '');
+
+    if (request.method === 'POST' && request.path === '/api/mobile/positions/batch'
+      && bearer && authSecret && verifyMobileToken(bearer, authSecret)) {
+      return true;
+    }
 
     if (!expected) {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<IncomingRequest>();
-    const provided = readApiKey(request);
-
-    if (!provided) {
-      throw new UnauthorizedException(
-        'Falta la API key. Envía el header "x-api-key" o "Authorization: Bearer <clave>".',
-      );
-    }
-
-    if (!timingSafeEqual(digest(provided), digest(expected))) {
-      throw new UnauthorizedException('API key inválida.');
-    }
-
-    return true;
+    throw new UnauthorizedException(
+      'Credencial inválida. Envía "x-api-key" o un token de sesión móvil.',
+    );
   }
 
   private isPublic(context: ExecutionContext): boolean {

@@ -44,6 +44,10 @@ export default () => {
     corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
     // Vacía = API abierta (solo para desarrollo local).
     apiKey: process.env.API_KEY?.trim() || '',
+    auth: {
+      secret: process.env.AUTH_SECRET?.trim() || '',
+      tokenTtlHours: toInt(process.env.AUTH_TOKEN_TTL_HOURS, 12, 1),
+    },
     trustProxy: toBool(process.env.TRUST_PROXY, false),
     swaggerEnabled: toBool(process.env.SWAGGER_ENABLED, true),
     throttle: {

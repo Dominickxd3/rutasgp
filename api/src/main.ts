@@ -37,6 +37,7 @@ function setupSwagger(app: NestExpressApplication, port: number): void {
       )
       .addTag('fleet', 'Posiciones y estado de las unidades')
       .addTag('history', 'Consulta paginada del historial GPS')
+      .addTag('mobile', 'Recepción de posiciones desde celulares corporativos')
       .addTag('geofences', 'Geocercas de sedes y eventos de entrada/salida')
       .addTag('health', 'Estado del servicio')
       .build(),

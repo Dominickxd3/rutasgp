@@ -13,6 +13,8 @@ import { HealthController } from './health.controller';
 import { HistoryModule } from './history/history.module';
 import { TripsModule } from './trips/trips.module';
 import { OrdersModule } from './orders/orders.module';
+import { MobileAuthModule } from './mobile-auth/mobile-auth.module';
+import { MobilePositionModule } from './mobile/mobile-position.module';
 
 @Module({
   imports: [
@@ -42,6 +44,8 @@ import { OrdersModule } from './orders/orders.module';
     GeofencesModule,
     TripsModule,
     OrdersModule,
+    MobileAuthModule,
+    MobilePositionModule,
   ],
   controllers: [HealthController],
   providers: [

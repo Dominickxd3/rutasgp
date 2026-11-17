@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 
 import { normalizeFleet } from './fleet.mapper';
 import { ProviderEvidenceService } from './provider-evidence.service';
+import { DatabaseService } from '../database/database.service';
 import {
   FleetSnapshot,
   RawFleetUnit,
@@ -31,7 +32,11 @@ export class FleetService {
   private inFlight: Promise<FleetSnapshot> | null = null;
   private lastAttemptAt = 0;
 
-  constructor(private readonly config: ConfigService, private readonly evidence: ProviderEvidenceService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly evidence: ProviderEvidenceService,
+    private readonly database: DatabaseService,
+  ) {}
 
   async getFleet(forceRefresh = false): Promise<FleetSnapshot> {
     const now = Date.now();
@@ -84,7 +89,8 @@ export class FleetService {
     this.lastAttemptAt = Date.now();
 
     try {
-      const { units } = await this.getProviderFleet();
+      const provider = await this.getProviderFleet();
+      const units = await this.mergeStoredPositions(provider.units);
       const moving = units.filter((unit) => unit.velocidad > 0).length;
 
       const snapshot: FleetSnapshot = {
@@ -122,6 +128,80 @@ export class FleetService {
       throw new ServiceUnavailableException(
         'No se pudo obtener la flota desde el proveedor GPS.',
       );
+    }
+  }
+
+  private async mergeStoredPositions(providerUnits: FleetSnapshot['units']): Promise<FleetSnapshot['units']> {
+    try {
+      const pool = await this.database.pool;
+      const result = await pool.request().query<{
+        providerId: number;
+        plate: string;
+        latitude: number;
+        longitude: number;
+        speed: number | null;
+        engine: string | null;
+        heading: number | null;
+        mileage: number | null;
+        battery: number | null;
+        gpsDate: Date;
+      }>(`
+        WITH latest AS (
+          SELECT p.*, ROW_NUMBER() OVER (
+            PARTITION BY p.id_vehiculo
+            ORDER BY p.fecha_gps_utc DESC, p.id_posicion DESC
+          ) AS rn
+          FROM dbo.GPS_Posiciones p
+        )
+        SELECT v.id_unidad_proveedor AS providerId, v.placa AS plate,
+               p.latitud AS latitude, p.longitud AS longitude,
+               p.velocidad_kmh AS speed, p.estado_motor AS engine,
+               p.orientacion AS heading, p.kilometraje AS mileage,
+               p.bateria AS battery, p.fecha_gps_utc AS gpsDate
+        FROM dbo.Vehiculos v
+        JOIN latest p ON p.id_vehiculo = v.id_vehiculo AND p.rn = 1
+        WHERE v.activo = 1;
+      `);
+      const byId = new Map(providerUnits.map((unit) => [unit.idUnidad, unit]));
+      const providerTimestamp = (value: string | null): number => {
+        if (!value) return 0;
+        const normalized = /(?:Z|[+-]\d\d:\d\d)$/.test(value)
+          ? value
+          : `${value.trim().replace(' ', 'T')}-05:00`;
+        const parsed = Date.parse(normalized);
+        return Number.isFinite(parsed) ? parsed : 0;
+      };
+
+      for (const row of result.recordset) {
+        const id = String(row.providerId);
+        const previous = byId.get(id);
+        const storedAt = row.gpsDate.getTime();
+        if (previous && providerTimestamp(previous.fecha) >= storedAt) continue;
+        const speed = Math.max(0, Number(row.speed ?? 0));
+        const engine = row.engine?.trim() || 'Sin dato';
+        const normalizedEngine = engine.toLowerCase();
+        byId.set(id, {
+          idUnidad: id,
+          placa: row.plate,
+          cliente: previous?.cliente ?? null,
+          estadoMotor: engine,
+          motorEncendido: normalizedEngine.includes('encend') || normalizedEngine.includes('activo') || normalizedEngine === 'on',
+          velocidad: Math.round(speed),
+          velocidadOriginal: speed,
+          orientacionOriginal: row.heading === null ? null : Number(row.heading),
+          latitud: Number(row.latitude),
+          longitud: Number(row.longitude),
+          orientacion: row.heading === null ? 0 : ((Number(row.heading) % 360) + 360) % 360,
+          bateria: row.battery === null ? null : Number(row.battery),
+          kilometraje: row.mileage === null ? null : Number(row.mileage),
+          fecha: row.gpsDate.toISOString(),
+          modulo: previous?.modulo ?? 'GPSCamiones',
+        });
+      }
+      return [...byId.values()].sort((a, b) => a.placa.localeCompare(b.placa, 'es', { numeric: true }));
+    } catch (error) {
+      this.logger.warn(`No se pudo combinar la posición almacenada: ${error instanceof Error ? error.message : error}`);
+      return providerUnits;
     }
   }
 
