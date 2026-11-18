@@ -34,31 +34,76 @@ const QUALITY_OPACITY: maplibregl.ExpressionSpecification = [
   'match', ['get', 'quality'], 'matched', 0.95, 'raw', 0.6, 0.45,
 ];
 
+/**
+ * Nombre que se muestra junto al ícono del celular: la placa del camión
+ * asignado; si no tiene, el nombre del dispositivo (marca y modelo).
+ */
+export function phoneLabel(device: MobileLiveResult['devices'][number]): string {
+  if (device.assignedPlate) return device.assignedPlate;
+  const model = device.model?.replace(/\s*\(Android[^)]*\)\s*$/i, '').trim();
+  return model || device.phone?.plate || device.deviceId.slice(0, 8);
+}
+
+const PHONE_ICON_ID = 'mobile-phone-icon';
+
+/** Ícono de celular (contorno, como el de la referencia) dibujado en un canvas. */
+function phoneIconImage(): ImageData | null {
+  const scale = 2;
+  const w = 26 * scale;
+  const h = 40 * scale;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const line = 2.6 * scale;
+  const pad = line;
+  const radius = 5 * scale;
+  ctx.lineWidth = line;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#c2410c';
+  ctx.fillStyle = '#ffffff';
+  // Cuerpo
+  ctx.beginPath();
+  ctx.roundRect(pad, pad, w - pad * 2, h - pad * 2, radius);
+  ctx.fill();
+  ctx.stroke();
+  // Pantalla en naranja suave
+  ctx.fillStyle = '#ffedd5';
+  ctx.fillRect(pad + line / 2, pad + 7 * scale, w - pad * 2 - line, h - pad * 2 - 14 * scale);
+  ctx.beginPath();
+  ctx.moveTo(pad, pad + 7 * scale);
+  ctx.lineTo(w - pad, pad + 7 * scale);
+  ctx.moveTo(pad, h - pad - 7 * scale);
+  ctx.lineTo(w - pad, h - pad - 7 * scale);
+  // Auricular
+  ctx.moveTo(w / 2 - 4 * scale, pad + 3.5 * scale);
+  ctx.lineTo(w / 2 + 4 * scale, pad + 3.5 * scale);
+  ctx.stroke();
+  // Botón
+  ctx.beginPath();
+  ctx.arc(w / 2, h - pad - 3.5 * scale, 1.6 * scale, 0, Math.PI * 2);
+  ctx.stroke();
+  return ctx.getImageData(0, 0, w, h);
+}
+
 function collections(data: MobileLiveResult | null): { trails: Collection; points: Collection } {
   const trails: GeoJSON.Feature[] = [];
   const points: GeoJSON.Feature[] = [];
-  // Ajustado a calles si ya está calculado; si no, la línea de lecturas GPS.
+  // Solo el recorrido ajustado a calles (o depurado por el servidor). Nunca las
+  // lecturas crudas: con el vehículo quieto el GPS "tiembla" y dibujaría garabatos.
   const pushTrack = (track: MobileLiveResult['devices'][number]['phone'], kind: 'truck' | 'phone') => {
-    if (!track) return;
-    if (track.road && track.road.length > 0) {
-      for (const part of track.road) {
-        if (part.coordinates.length < 2) continue;
-        trails.push({
-          type: 'Feature',
-          properties: { kind, quality: part.kind },
-          geometry: { type: 'LineString', coordinates: part.coordinates },
-        });
-      }
-    } else if (track.trail.length >= 2) {
+    for (const part of track?.road ?? []) {
+      if (part.coordinates.length < 2) continue;
       trails.push({
         type: 'Feature',
-        properties: { kind, quality: 'raw' },
-        geometry: { type: 'LineString', coordinates: track.trail.map(([lng, lat]) => [lng, lat]) },
+        properties: { kind, quality: part.kind },
+        geometry: { type: 'LineString', coordinates: part.coordinates },
       });
     }
   };
   for (const device of data?.devices ?? []) {
-    const label = device.phone?.plate ?? device.deviceId.slice(0, 8);
+    const label = phoneLabel(device);
     pushTrack(device.truck, 'truck');
     pushTrack(device.phone, 'phone');
     for (const stop of device.stopList ?? []) {
@@ -131,30 +176,23 @@ export function addMobileLayers(map: MapLibreMap): void {
     },
     paint: { 'text-color': '#334155', 'text-halo-color': '#ffffff', 'text-halo-width': 1.4 },
   });
+  const icon = phoneIconImage();
+  if (icon && !map.hasImage(PHONE_ICON_ID)) map.addImage(PHONE_ICON_ID, icon, { pixelRatio: 2 });
+  // Ícono de celular con su nombre (o la placa del camión asignado) debajo
   map.addLayer({
     id: 'mobile-phone-point',
-    type: 'circle',
-    source: POINT_SOURCE_ID,
-    filter: ['==', ['get', 'kind'], 'phone'],
-    paint: {
-      'circle-radius': 8,
-      'circle-color': MOBILE_PHONE_COLOR,
-      'circle-stroke-color': '#ffffff',
-      'circle-stroke-width': 2.5,
-    },
-  });
-  map.addLayer({
-    id: 'mobile-phone-label',
     type: 'symbol',
     source: POINT_SOURCE_ID,
     filter: ['==', ['get', 'kind'], 'phone'],
     layout: {
+      'icon-image': PHONE_ICON_ID,
+      'icon-anchor': 'bottom',
+      'icon-allow-overlap': true,
       'text-field': ['get', 'label'],
       'text-font': ['Noto Sans Bold'],
       'text-size': 12,
-      // Arriba del punto: la placa del camión ya se rotula debajo de su ícono
-      'text-offset': [0, -1.4],
-      'text-anchor': 'bottom',
+      'text-anchor': 'top',
+      'text-offset': [0, 0.3],
       'text-allow-overlap': true,
     },
     paint: { 'text-color': '#9a3412', 'text-halo-color': '#ffffff', 'text-halo-width': 1.6 },

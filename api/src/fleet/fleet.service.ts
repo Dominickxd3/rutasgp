@@ -160,7 +160,10 @@ export class FleetService {
                p.bateria AS battery, p.fecha_gps_utc AS gpsDate
         FROM dbo.Vehiculos v
         JOIN latest p ON p.id_vehiculo = v.id_vehiculo AND p.rn = 1
-        WHERE v.activo = 1;
+        WHERE v.activo = 1
+          -- Los celulares GPSCamiones (800.000.000 en adelante) no son camiones:
+          -- se muestran con su propio ícono en la capa de celulares.
+          AND v.id_unidad_proveedor < 800000000;
       `);
       const byId = new Map(providerUnits.map((unit) => [unit.idUnidad, unit]));
       const providerTimestamp = (value: string | null): number => {

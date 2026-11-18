@@ -17,6 +17,11 @@ interface Props {
   search: string;
 }
 
+/** Nombre del dispositivo (marca y modelo, sin la versión de Android). */
+function deviceName(device: MobileLiveDevice): string {
+  return device.model?.replace(/\s*\(Android[^)]*\)\s*$/i, '').trim() || device.phone?.plate || device.deviceId;
+}
+
 const STOP_LABELS: Record<string, string> = {
   POSIBLE_ENTREGA: 'posibles entregas',
   TRAFICO: 'tráfico',
@@ -211,7 +216,9 @@ export function PhoneRoutesList({ date, search }: Props) {
                 <div className="trip-truck-badge trip-truck-badge--phone">
                   <i className="pi pi-mobile" aria-hidden="true" />
                 </div>
-                <strong className="trip-plate-title">{device.phone?.plate ?? device.deviceId}</strong>
+                <strong className="trip-plate-title" title={`Código ${device.deviceId}`}>
+                  {deviceName(device)}
+                </strong>
               </div>
               <div className="trip-card-right">
                 <span className={`trip-status-pill ${base.assignedPlate ? 'trip-status-pill--active' : 'trip-status-pill--done'}`}>

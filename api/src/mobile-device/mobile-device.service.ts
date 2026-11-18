@@ -48,7 +48,13 @@ export class MobileDeviceService {
    */
   private async roadFor(vehicleId: number, points: TrackPoint[]): Promise<LiveTrack['road']> {
     const segments = segmentsForMatching(points);
-    if (segments.length === 0) return null;
+    // Vehículo quieto (solo deriva del GPS): no hay recorrido que dibujar
+    if (segments.length === 0) return [];
+    // Mientras OSRM no responde: tramos depurados (sin la deriva), marcados como estimados
+    const cleaned = segments.map((segment) => ({
+      coordinates: segment.map((pt) => [pt.longitude, pt.latitude] as [number, number]),
+      kind: 'estimated' as const,
+    }));
     const lastSegment = segments.at(-1)!;
     const key = `${segments.length}:${segments.reduce((n, s) => n + s.length, 0)}:${lastSegment.at(-1)!.time}`;
     const memo = this.roadMemo.get(vehicleId);
@@ -77,7 +83,7 @@ export class MobileDeviceService {
     }
     const waiting = this.roadMemo.get(vehicleId)!.pending;
     if (waiting) await Promise.race([waiting, new Promise((resolve) => setTimeout(resolve, ROAD_WAIT_MS))]);
-    return this.roadMemo.get(vehicleId)?.road ?? null;
+    return this.roadMemo.get(vehicleId)?.road ?? cleaned;
   }
 
   /**
@@ -358,7 +364,9 @@ export class MobileDeviceService {
         last: last
           ? { latitude: last.latitude, longitude: last.longitude, time: new Date(last.time).toISOString(), speedKmh: last.speedKmh }
           : null,
-        trail: downsample(points, 1500).map((pt) => [pt.longitude, pt.latitude, pt.time] as LiveTrackPoint),
+        // Solo lecturas con avance real (sin la deriva del GPS de un vehículo quieto)
+        trail: downsample(segmentsForMatching(points).flat(), 1500)
+          .map((pt) => [pt.longitude, pt.latitude, pt.time] as LiveTrackPoint),
         road: await this.roadFor(vehicleId, points),
       };
     };
