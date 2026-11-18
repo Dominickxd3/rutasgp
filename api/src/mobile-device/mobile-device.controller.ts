@@ -61,7 +61,27 @@ export class MobileDeviceController {
   @Get('live')
   @Header('Cache-Control', 'no-store')
   @ApiOperation({ summary: 'Recorrido de los celulares, el de su camión asignado y la comparación' })
-  live(@Query('from') fromValue?: string, @Query('to') toValue?: string) {
+  live(
+    @Query('from') fromValue?: string,
+    @Query('to') toValue?: string,
+    @Query('deviceId') deviceId?: string,
+    @Query('vehicleId') vehicleValue?: string,
+  ) {
+    // vehicleId: número = comparar con ese camión; "none" = solo el celular
+    let compareVehicleId: number | null | undefined;
+    if (vehicleValue !== undefined && vehicleValue !== '') {
+      if (vehicleValue === 'none') compareVehicleId = null;
+      else {
+        compareVehicleId = Number(vehicleValue);
+        if (!Number.isSafeInteger(compareVehicleId) || compareVehicleId < 1) {
+          throw new BadRequestException('vehicleId debe ser un entero positivo o "none".');
+        }
+      }
+    }
+    const options = {
+      deviceId: deviceId ? parseDeviceId(deviceId) : undefined,
+      compareVehicleId,
+    };
     const to = toValue ? new Date(toValue) : new Date();
     // Por defecto: desde las 00:00 de hoy en Lima (UTC-5)
     const limaMidnight = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate(), 5));
@@ -74,7 +94,7 @@ export class MobileDeviceController {
     if (to.getTime() - from.getTime() > 3 * 86_400_000) {
       throw new BadRequestException('El rango máximo es de 3 días.');
     }
-    return this.devices.live(from, to);
+    return this.devices.live(from, to, options);
   }
 
   @Put('devices/:deviceId/vehicle')

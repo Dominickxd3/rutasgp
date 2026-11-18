@@ -87,8 +87,10 @@ export function MobileDevicesPage() {
 
   const pendingCount = devices.filter((device) => !device.plate).length;
 
-  const save = async (device: MobileDevice) => {
-    const vehicleId = drafts[device.deviceId] ?? null;
+  /** Asigna el camión elegido; con `unassign` quita el camión del celular. */
+  const save = async (device: MobileDevice, unassign = false) => {
+    if (unassign && !window.confirm(`¿Quitar el camión ${device.plate} del celular ${device.deviceId}?`)) return;
+    const vehicleId = unassign ? null : drafts[device.deviceId] ?? null;
     setSavingId(device.deviceId);
     setError(null);
     setNotice(null);
@@ -204,7 +206,7 @@ export function MobileDevicesPage() {
                       setDrafts((current) => ({ ...current, [device.deviceId]: event.value as number | null }))}
                   />
                   <Button
-                    label="Guardar"
+                    label={device.plate ? 'Cambiar' : 'Asignar'}
                     icon="pi pi-check"
                     size="small"
                     disabled={!changed}
@@ -212,6 +214,18 @@ export function MobileDevicesPage() {
                     onClick={() => void save(device)}
                   />
                 </div>
+                {device.plate && (
+                  <Button
+                    label={`Desasignar ${device.plate}`}
+                    icon="pi pi-times"
+                    size="small"
+                    severity="danger"
+                    text
+                    className="device-card__unassign"
+                    disabled={savingId === device.deviceId}
+                    onClick={() => void save(device, true)}
+                  />
+                )}
               </article>
             );
           })

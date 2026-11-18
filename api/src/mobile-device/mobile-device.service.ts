@@ -217,19 +217,48 @@ export class MobileDeviceService {
    * comparación entre ambos. Ambos salen de dbo.GPS_Posiciones: el celular como
    * su propio vehículo CEL-xxxx y el camión como lo guarda el recolector GPS.
    */
-  async live(from: Date, to: Date): Promise<MobileLiveResult> {
+  async live(
+    from: Date,
+    to: Date,
+    /**
+     * Para ver un solo celular comparado con un camión elegido en la web, sin
+     * cambiar su asignación. compareVehicleId: número = ese camión; null = solo
+     * el celular; undefined = el camión asignado.
+     */
+    options: { deviceId?: string; compareVehicleId?: number | null } = {},
+  ): Promise<MobileLiveResult> {
     const pool = await this.database.pool;
-    const devices = (await pool.request().query<{
+    const deviceRequest = pool.request();
+    if (options.deviceId) deviceRequest.input('deviceId', sql.VarChar(128), options.deviceId);
+    const rows = (await deviceRequest.query<{
       device_id: string; modelo: string | null; ultimo_usuario: string | null; ultimo_contacto_utc: Date;
       id_vehiculo: number | null; placa: string | null;
     }>(`
       SELECT d.device_id, d.modelo, d.ultimo_usuario, d.ultimo_contacto_utc, d.id_vehiculo, v.placa
       FROM dbo.GPS_DispositivosMoviles d
       LEFT JOIN dbo.Vehiculos v ON v.id_vehiculo = d.id_vehiculo
-      WHERE d.activo = 1
+      WHERE d.activo = 1 ${options.deviceId ? 'AND d.device_id = @deviceId' : ''}
       ORDER BY d.ultimo_contacto_utc DESC;
     `)).recordset;
-    if (devices.length === 0) return { from: from.toISOString(), to: to.toISOString(), devices: [] };
+    if (rows.length === 0) return { from: from.toISOString(), to: to.toISOString(), devices: [] };
+
+    // Camión con el que se compara (por defecto, el asignado)
+    let comparePlate: string | null = null;
+    if (typeof options.compareVehicleId === 'number') {
+      const found = (await pool.request()
+        .input('vehicleId', sql.Int, options.compareVehicleId)
+        .query<{ placa: string }>('SELECT placa FROM dbo.Vehiculos WHERE id_vehiculo = @vehicleId;')).recordset[0];
+      if (!found) throw new BadRequestException('El camión a comparar no existe.');
+      comparePlate = found.placa.trim();
+    }
+    const devices = rows.map((row) => ({
+      ...row,
+      assignedVehicleId: row.id_vehiculo === null ? null : Number(row.id_vehiculo),
+      assignedPlate: row.placa?.trim() ?? null,
+      ...(options.compareVehicleId === undefined
+        ? {}
+        : { id_vehiculo: options.compareVehicleId, placa: comparePlate }),
+    }));
 
     // Vehículo propio de cada celular (CEL-xxxx)
     const identities = devices.map((d) => phoneVehicleIdentity(d.device_id));
@@ -350,6 +379,8 @@ export class MobileDeviceService {
           model: d.modelo,
           lastUser: d.ultimo_usuario,
           lastSeenAt: new Date(d.ultimo_contacto_utc).toISOString(),
+          assignedVehicleId: d.assignedVehicleId,
+          assignedPlate: d.assignedPlate,
           phone,
           truck,
           comparison: d.id_vehiculo ? compareTracks(phonePoints, truckPoints) : null,

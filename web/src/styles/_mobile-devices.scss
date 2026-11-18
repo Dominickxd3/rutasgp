@@ -154,3 +154,35 @@
   font-size: 0.72rem;
   color: #64748b;
 }
+
+/* Selector "Comparar con" en la tarjeta del celular */
+.phone-route-compare {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.74rem;
+  color: #64748b;
+
+  label {
+    flex-shrink: 0;
+    font-weight: 600;
+  }
+}
+
+.phone-route-compare__dropdown.p-dropdown {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+
+  .p-dropdown-label {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.78rem;
+  }
+}
+
+.device-card__unassign.p-button {
+  align-self: flex-start;
+  padding: 2px 4px;
+  font-size: 0.74rem;
+}

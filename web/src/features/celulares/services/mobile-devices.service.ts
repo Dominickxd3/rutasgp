@@ -92,7 +92,11 @@ export interface MobileLiveDevice {
   model: string | null;
   lastUser: string | null;
   lastSeenAt: string;
+  /** Camión asignado en Celulares GPS (puede diferir del comparado). */
+  assignedVehicleId: number | null;
+  assignedPlate: string | null;
   phone: LiveTrack | null;
+  /** Camión con el que se compara; null = solo el celular. */
   truck: LiveTrack | null;
   comparison: TrackComparison | null;
   phoneKm: number;
@@ -113,11 +117,20 @@ export interface MobileLiveResult {
 export function fetchMobileLive(
   signal?: AbortSignal,
   range?: { from: Date; to: Date },
+  /** Un solo celular comparado con un camión elegido (null = solo celular), sin cambiar la asignación. */
+  compare?: { deviceId: string; vehicleId: number | null },
 ): Promise<MobileLiveResult> {
-  const query = range
-    ? `?from=${encodeURIComponent(range.from.toISOString())}&to=${encodeURIComponent(range.to.toISOString())}`
-    : '';
-  return request<MobileLiveResult>(`/mobile/live${query}`, { signal });
+  const params = new URLSearchParams();
+  if (range) {
+    params.set('from', range.from.toISOString());
+    params.set('to', range.to.toISOString());
+  }
+  if (compare) {
+    params.set('deviceId', compare.deviceId);
+    params.set('vehicleId', compare.vehicleId === null ? 'none' : String(compare.vehicleId));
+  }
+  const query = params.toString();
+  return request<MobileLiveResult>(`/mobile/live${query ? `?${query}` : ''}`, { signal });
 }
 
 /** Día completo en hora de Lima (UTC-5) para una fecha AAAA-MM-DD; hoy termina ahora. */

@@ -96,8 +96,11 @@ export interface MobileLiveDevice {
   model: string | null;
   lastUser: string | null;
   lastSeenAt: string;
+  /** Camión asignado en la web (puede diferir del comparado en `truck`). */
+  assignedVehicleId: number | null;
+  assignedPlate: string | null;
   phone: LiveTrack | null;
-  /** Camión asignado en la web (GPS del proveedor). Null si no tiene. */
+  /** Camión con el que se compara: el asignado, o el elegido en la web. Null = solo celular. */
   truck: LiveTrack | null;
   comparison: import('./track-comparison').TrackComparison | null;
   phoneKm: number;
