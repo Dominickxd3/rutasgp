@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import sql from 'mssql/msnodesqlv8';
 
@@ -25,6 +25,13 @@ export class MobileAuthService {
   ) {}
 
   async login(input: MobileLoginInput): Promise<MobileLoginResult> {
+    // Sin AUTH_SECRET el guard rechaza todos los tokens móviles (401): no tiene
+    // sentido emitir uno que la propia API no aceptará al subir posiciones.
+    if (!this.config.get<string>('auth.secret', '').trim()) {
+      throw new ServiceUnavailableException(
+        'El servidor no tiene AUTH_SECRET configurado; la app móvil no puede iniciar sesión. Avise al administrador.',
+      );
+    }
     const pool = await this.database.pool;
     const result = await pool
       .request()

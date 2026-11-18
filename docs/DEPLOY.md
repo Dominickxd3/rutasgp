@@ -34,11 +34,12 @@ npm ci
 Copy-Item api/.env.production.example api/.env.production
 ```
 
-Edite api/.env.production. Configure API_KEY, GPS_DB_USER y GPS_DB_PASSWORD con
+Edite api/.env.production. Configure API_KEY, AUTH_SECRET, GPS_DB_USER y GPS_DB_PASSWORD con
 los valores de esta instalacion. Defina CORS_ORIGIN con la URL de acceso si usa
 consumidores desde otro origen. PORT es 3000 inicialmente.
 
-Puede generar una clave con este comando y copiar el resultado a API_KEY.
+Puede generar una clave con este comando y copiar el resultado a API_KEY. Ejecutelo
+otra vez para AUTH_SECRET (firma las sesiones de la app movil; use un valor distinto).
 
 ```powershell
 node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"

@@ -12,6 +12,9 @@ export function loadProductionEnvironment() {
     if (existsSync(file)) process.loadEnvFile(file);
   }
   process.env.NODE_ENV = 'production';
+  if (!process.env.AUTH_SECRET?.trim()) {
+    console.warn('AVISO: AUTH_SECRET no esta definida. La app movil GPSCamiones no podra iniciar sesion ni enviar posiciones.');
+  }
   if (!process.env.API_KEY?.trim()) {
     throw new Error('Defina API_KEY en api/.env o api/.env.production, o en el entorno.');
   }
