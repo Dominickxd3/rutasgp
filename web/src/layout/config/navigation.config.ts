@@ -50,6 +50,7 @@ export function createNavigation(
       key: 'herramientas', label: 'Herramientas', icon: 'pi pi-sliders-h', collapsible: true,
       items: [
         { path: '/monitoreo/geocercas', label: 'Geocercas', icon: 'pi pi-map-marker' },
+        { path: '/monitoreo/celulares', label: 'Celulares GPS', icon: 'pi pi-mobile' },
         { path: '/monitoreo/recorridos', label: 'Rutas y recorridos', icon: 'pi pi-directions',
           badge: counts.activeTrips || undefined },
       ],

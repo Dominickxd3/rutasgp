@@ -15,6 +15,7 @@ import { TripsModule } from './trips/trips.module';
 import { OrdersModule } from './orders/orders.module';
 import { MobileAuthModule } from './mobile-auth/mobile-auth.module';
 import { MobilePositionModule } from './mobile/mobile-position.module';
+import { MobileDeviceModule } from './mobile-device/mobile-device.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { MobilePositionModule } from './mobile/mobile-position.module';
     OrdersModule,
     MobileAuthModule,
     MobilePositionModule,
+    MobileDeviceModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -76,7 +76,10 @@ export class ApiKeyGuard implements CanActivate {
     const bearer = readBearer(request);
     const authSecret = this.config.get<string>('auth.secret', '');
 
-    if (request.method === 'POST' && request.path === '/api/mobile/positions/batch'
+    const mobileRoute = `${request.method} ${request.path}`;
+    if ((mobileRoute === 'POST /api/mobile/positions/batch'
+      || mobileRoute === 'POST /api/mobile/events/batch'
+      || mobileRoute === 'GET /api/mobile/device/config')
       && bearer && authSecret && verifyMobileToken(bearer, authSecret)) {
       return true;
     }

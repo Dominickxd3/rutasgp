@@ -13,6 +13,7 @@ import { HistoryPage } from './features/historial/pages/HistoryPage';
 import { GeofencesPage } from './features/sede/pages/GeofencesPage';
 import { OrdersPage } from './features/pedidos/pages/OrdersPage';
 import { OrderAssignmentPage } from './features/asignacion-pedidos/pages/OrderAssignmentPage';
+import { MobileDevicesPage } from './features/celulares/pages/MobileDevicesPage';
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
               <Route path="recorridos" element={<TripsPage />} />
               <Route path="historial" element={<HistoryPage />} />
               <Route path="geocercas" element={<GeofencesPage />} />
+              <Route path="celulares" element={<MobileDevicesPage />} />
             </Route>
             <Route path="distribucion">
               <Route
