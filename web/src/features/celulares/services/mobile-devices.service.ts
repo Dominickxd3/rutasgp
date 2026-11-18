@@ -106,7 +106,24 @@ export interface MobileLiveResult {
   devices: MobileLiveDevice[];
 }
 
-/** Recorrido de hoy (desde las 00:00 de Lima) de los celulares y sus camiones. */
-export function fetchMobileLive(signal?: AbortSignal): Promise<MobileLiveResult> {
-  return request<MobileLiveResult>('/mobile/live', { signal });
+/**
+ * Recorrido de los celulares y sus camiones. Sin rango: hoy desde las 00:00 de
+ * Lima. Con rango: ese periodo (máximo 3 días).
+ */
+export function fetchMobileLive(
+  signal?: AbortSignal,
+  range?: { from: Date; to: Date },
+): Promise<MobileLiveResult> {
+  const query = range
+    ? `?from=${encodeURIComponent(range.from.toISOString())}&to=${encodeURIComponent(range.to.toISOString())}`
+    : '';
+  return request<MobileLiveResult>(`/mobile/live${query}`, { signal });
+}
+
+/** Día completo en hora de Lima (UTC-5) para una fecha AAAA-MM-DD; hoy termina ahora. */
+export function limaDayRange(date: string): { from: Date; to: Date } {
+  const from = new Date(`${date}T00:00:00-05:00`);
+  const end = new Date(from.getTime() + 24 * 60 * 60 * 1000 - 1);
+  const now = new Date();
+  return { from, to: end.getTime() > now.getTime() ? now : end };
 }

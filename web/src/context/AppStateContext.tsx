@@ -32,6 +32,7 @@ import type {
 import { validGeofenceColor } from '../features/sede/utils/geofence-appearance.utils';
 import type { HistoryVisualization } from '../features/historial/types/history.types';
 import type { TripRecord } from '../features/recorridos/types/trip.types';
+import type { MobileLiveResult } from '../features/celulares/services/mobile-devices.service';
 
 interface AppStateValue {
   snapshot: FleetSnapshot | null;
@@ -59,6 +60,9 @@ interface AppStateValue {
   setActiveTripsCount: (value: number) => void;
   selectedTrip: TripRecord | null;
   setSelectedTrip: (trip: TripRecord | null) => void;
+  /** Ruta de un celular (y su camión) elegida en Rutas y recorridos. */
+  phoneOverlay: MobileLiveResult | null;
+  setPhoneOverlay: (value: MobileLiveResult | null) => void;
 
   mapRef: RefObject<FleetMapHandle>;
   selectedUnit: FleetUnit | null;
@@ -101,6 +105,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [showGpsGaps, setShowGpsGaps] = useState(true);
   const [activeTripsCount, setActiveTripsCount] = useState<number>(0);
   const [selectedTrip, setSelectedTrip] = useState<TripRecord | null>(null);
+  const [phoneOverlay, setPhoneOverlay] = useState<MobileLiveResult | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<FleetUnit | null>(null);
   const mapRef = useRef<FleetMapHandle>(null);
 
@@ -402,6 +407,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setActiveTripsCount,
       selectedTrip,
       setSelectedTrip,
+      phoneOverlay,
+      setPhoneOverlay,
       mapRef,
       selectedUnit,
       setSelectedUnit,
@@ -439,6 +446,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       showGpsGaps,
       activeTripsCount,
       selectedTrip,
+      phoneOverlay,
       selectedUnit,
       focusUnit,
       fitAll,

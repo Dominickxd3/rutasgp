@@ -3,6 +3,7 @@ import { useDailyTrips } from '../hooks/useDailyTrips';
 import { formatTime } from '../utils/trips-format.utils';
 import type { DailyTripsPanelProps } from '../types/daily-trips-panel.types';
 import type { TripRecord } from '../types/trip.types';
+import { PhoneRoutesList } from '../../celulares/components/PhoneRoutesList';
 
 export function DailyTripsPanel({
   onVisualization,
@@ -33,6 +34,8 @@ export function DailyTripsPanel({
 
   const [search, setSearch] = useState('');
   const [tabFilter, setTabFilter] = useState<'all' | 'active' | 'finished'>('all');
+  // Recorridos de camiones (GPS del proveedor) o rutas de los celulares GPSCamiones
+  const [source, setSource] = useState<'trucks' | 'phones'>('trucks');
 
   // Filter trips by search query (plate, status, sede) and selected tab
   const filteredTrips = useMemo(() => {
@@ -86,12 +89,38 @@ export function DailyTripsPanel({
           </div>
         </div>
 
+        {/* Fuente: camiones o celulares */}
+        <div className="daily-trips-source" role="tablist" aria-label="Tipo de recorrido">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={source === 'trucks'}
+            className={`daily-trips-source__btn ${source === 'trucks' ? 'is-active' : ''}`}
+            onClick={() => setSource('trucks')}
+          >
+            <i className="pi pi-truck" aria-hidden="true" /> Camiones
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={source === 'phones'}
+            className={`daily-trips-source__btn ${source === 'phones' ? 'is-active' : ''}`}
+            onClick={() => {
+              setSource('phones');
+              onVisualization(null);
+              onTripSelected?.(null);
+            }}
+          >
+            <i className="pi pi-mobile" aria-hidden="true" /> Celulares
+          </button>
+        </div>
+
         {/* Row 2: Search input */}
         <div className="daily-trips-search-wrap">
           <i className="pi pi-search search-icon" aria-hidden="true" />
           <input
             type="text"
-            placeholder="Buscar por placa o sede..."
+            placeholder={source === 'phones' ? 'Buscar por celular, placa o usuario...' : 'Buscar por placa o sede...'}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="daily-trips-search-input"
@@ -109,6 +138,7 @@ export function DailyTripsPanel({
         </div>
 
         {/* Row 3: Actionable Segment Tabs */}
+        {source === 'trucks' && <>
         <div className="daily-trips-tabs" role="tablist">
           <button
             type="button"
@@ -146,10 +176,18 @@ export function DailyTripsPanel({
           <span className="dot-sep">•</span>
           <span>{stats.totalStops} paradas</span>
         </div>
+        </>}
+        {source === 'phones' && (
+          <div className="daily-trips-summary-line">
+            <span>Celular en naranja · camión asignado en azul · ajustado a calles</span>
+          </div>
+        )}
       </header>
 
       {/* Body: Trips List */}
       <div className="daily-trips-list-container">
+        {source === 'phones' && <PhoneRoutesList date={date} search={search} />}
+        {source === 'trucks' && <>
         {error && <div className="trips-error-banner">{error}</div>}
 
         {filteredTrips.length === 0 && !loading && (
@@ -262,6 +300,7 @@ export function DailyTripsPanel({
             </div>
           );
         })}
+        </>}
       </div>
     </section>
   );

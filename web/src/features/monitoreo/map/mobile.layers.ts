@@ -72,7 +72,7 @@ function collections(data: MobileLiveResult | null): { trails: Collection; point
     if (device.phone?.last) {
       points.push({
         type: 'Feature',
-        properties: { kind: 'phone', label: `📱 ${label}${device.truck ? ` · ${device.truck.plate}` : ''}` },
+        properties: { kind: 'phone', label },
         geometry: { type: 'Point', coordinates: [device.phone.last.longitude, device.phone.last.latitude] },
       });
     }
@@ -152,8 +152,9 @@ export function addMobileLayers(map: MapLibreMap): void {
       'text-field': ['get', 'label'],
       'text-font': ['Noto Sans Bold'],
       'text-size': 12,
-      'text-offset': [0, 1.5],
-      'text-anchor': 'top',
+      // Arriba del punto: la placa del camión ya se rotula debajo de su ícono
+      'text-offset': [0, -1.4],
+      'text-anchor': 'bottom',
       'text-allow-overlap': true,
     },
     paint: { 'text-color': '#9a3412', 'text-halo-color': '#ffffff', 'text-halo-width': 1.6 },

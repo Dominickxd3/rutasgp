@@ -5,7 +5,6 @@ import { ProgressSpinner } from 'primereact/progressspinner';
 import { FleetMap } from './FleetMap';
 import { useAppState } from '../../../context/AppStateContext';
 import { MIN_POLYGON_VERTICES } from '../../../lib/geo';
-import { MobileComparisonCard } from '../../celulares/components/MobileComparisonCard';
 import { useMobileLive } from '../../celulares/hooks/useMobileLive';
 
 interface MonitoringMapProps {
@@ -49,6 +48,7 @@ export function MonitoringMap(_props: MonitoringMapProps = {}) {
     handleCancelPlacement,
     handleUndoDraftVertex,
     handleFinishPolygon,
+    phoneOverlay,
   } = useAppState();
 
   const location = useLocation();
@@ -58,10 +58,13 @@ export function MonitoringMap(_props: MonitoringMapProps = {}) {
   const [filterOtherTrips, setFilterOtherTrips] = useState(false);
   const [followTruck, setFollowTruck] = useState(true);
   const [mapMode, setMapMode] = useState<'map' | 'satellite'>('map');
-  // Celulares GPSCamiones: recorrido en naranja junto al del camión en azul
-  const [showPhones, setShowPhones] = useState(true);
+  // Celulares GPSCamiones: recorrido en naranja junto al del camión en azul.
+  // En vivo es opcional (apagado por defecto); en Rutas y recorridos se dibuja
+  // el celular elegido en la lista.
+  const [showPhones, setShowPhones] = useState(false);
   const phonesEnabled = showPhones && !isTripsRoute;
   const mobileLive = useMobileLive(phonesEnabled);
+  const mobileOverlay = isTripsRoute ? phoneOverlay : phonesEnabled ? mobileLive.data : null;
 
   const showLoadingOverlay = !hasLoaded;
   const showErrorOverlay = hasLoaded && units.length === 0 && error !== null;
@@ -187,16 +190,8 @@ export function MonitoringMap(_props: MonitoringMapProps = {}) {
         onGeofenceChange={handleGeofenceChange}
         history={filterSelectedTrip ? history : null}
         showGpsGaps={showGpsGaps}
-        mobileLive={phonesEnabled ? mobileLive.data : null}
+        mobileLive={mobileOverlay}
       />
-
-      {phonesEnabled && !selectedTrip && placingShape === null && (
-        <MobileComparisonCard
-          data={mobileLive.data}
-          error={mobileLive.error}
-          onFocus={(lngLat) => mapRef.current?.panTo?.(lngLat)}
-        />
-      )}
 
       {/* Standard bottom legend when not in trips view */}
       {!isTripsRoute && !history && (
