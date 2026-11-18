@@ -269,11 +269,16 @@ export class MobileDeviceService {
     // Vehículo propio de cada celular (CEL-xxxx)
     const identities = devices.map((d) => phoneVehicleIdentity(d.device_id));
     const phoneRequest = pool.request();
-    identities.forEach((identity, i) => phoneRequest.input(`p${i}`, sql.Int, identity.providerUnitId));
+    // El driver ODBC genera parámetros internos @pN. Usa nombres propios.
+    const phoneParameters = identities.map((identity, index) => {
+      const name = `mobileUnit${index}`;
+      phoneRequest.input(name, sql.Int, identity.providerUnitId);
+      return `@${name}`;
+    });
     const phoneVehicles = new Map<number, number>(); // providerUnitId -> id_vehiculo
     (await phoneRequest.query<{ id_vehiculo: number; id_unidad_proveedor: number }>(`
       SELECT id_vehiculo, id_unidad_proveedor FROM dbo.Vehiculos
-      WHERE id_unidad_proveedor IN (${identities.map((_, i) => `@p${i}`).join(',')});
+      WHERE id_unidad_proveedor IN (${phoneParameters.join(',')});
     `)).recordset.forEach((row) => phoneVehicles.set(Number(row.id_unidad_proveedor), Number(row.id_vehiculo)));
 
     const vehicleIds = new Set<number>();
