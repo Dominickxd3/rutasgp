@@ -2,7 +2,7 @@ import { Injectable, ServiceUnavailableException, UnauthorizedException } from '
 import { ConfigService } from '@nestjs/config';
 import sql from 'mssql/msnodesqlv8';
 
-import { signMobileToken } from '../common/auth/mobile-token';
+import { signMobileToken, verifyMobileToken } from '../common/auth/mobile-token';
 import { DatabaseService } from '../database/database.service';
 import type {
   MobileLoginInput,
@@ -56,7 +56,7 @@ export class MobileAuthService {
       throw new UnauthorizedException('Usuario o contraseña incorrectos.');
     }
 
-    const ttlHours = this.config.get<number>('auth.tokenTtlHours', 12);
+    const ttlHours = this.config.get<number>('auth.tokenTtlHours', 720);
     const expiresAt = Date.now() + ttlHours * 60 * 60 * 1_000;
     const secret = this.config.get<string>('auth.secret', '');
     const token = signMobileToken(
@@ -82,6 +82,49 @@ export class MobileAuthService {
           (Number(user.User_EsAdmin ?? 0) === 1 ? 'admin' : 'tecnico'),
         isAdmin: Number(user.User_EsAdmin ?? 0) === 1,
       },
+    };
+  }
+
+  /**
+   * Renueva el token de un celular sin pedir contraseña, para que funcione sin
+   * que nadie abra la app. Exige firma válida, que el token no haya vencido hace
+   * más de AUTH_REFRESH_GRACE_DAYS, que el usuario siga activo en el ERP y que el
+   * celular no esté desactivado en GPS_DispositivosMoviles.
+   */
+  async refresh(token: string): Promise<{ success: true; token: string; expiresAt: string }> {
+    const secret = this.config.get<string>('auth.secret', '').trim();
+    if (!secret) {
+      throw new ServiceUnavailableException('El servidor no tiene AUTH_SECRET configurado.');
+    }
+    // now = 0: se valida la firma aunque el token ya haya vencido; el plazo se revisa abajo.
+    const payload = verifyMobileToken(token, secret, 0);
+    if (!payload) throw new UnauthorizedException('Token inválido.');
+    const graceMs = this.config.get<number>('auth.refreshGraceDays', 90) * 24 * 60 * 60 * 1_000;
+    if (payload.exp + graceMs < Date.now()) {
+      throw new UnauthorizedException('La sesión venció hace demasiado tiempo. Inicie sesión de nuevo.');
+    }
+
+    const pool = await this.database.pool;
+    const check = await pool.request()
+      .input('username', sql.VarChar(50), payload.sub)
+      .input('deviceId', sql.VarChar(128), payload.deviceId ?? null)
+      .query<{ userActive: number; deviceBlocked: number }>(`
+        SELECT
+          CASE WHEN EXISTS (SELECT 1 FROM dbo.Tab_SYS_Usuarios
+                            WHERE User_Logon = @username AND User_Estado = '1') THEN 1 ELSE 0 END AS userActive,
+          CASE WHEN @deviceId IS NOT NULL AND EXISTS (SELECT 1 FROM dbo.GPS_DispositivosMoviles
+                            WHERE device_id = @deviceId AND activo = 0) THEN 1 ELSE 0 END AS deviceBlocked;
+      `);
+    const row = check.recordset[0];
+    if (!row || Number(row.userActive) !== 1) throw new UnauthorizedException('El usuario ya no está activo en el ERP.');
+    if (Number(row.deviceBlocked) === 1) throw new UnauthorizedException('Este celular fue desactivado en la web.');
+
+    const ttlHours = this.config.get<number>('auth.tokenTtlHours', 720);
+    const expiresAt = Date.now() + ttlHours * 60 * 60 * 1_000;
+    return {
+      success: true,
+      token: signMobileToken({ sub: payload.sub, name: payload.name, deviceId: payload.deviceId, exp: expiresAt }, secret),
+      expiresAt: new Date(expiresAt).toISOString(),
     };
   }
 }
