@@ -523,11 +523,25 @@ export function useFleetMap(
     mapRef.current?.panTo(lngLat, { duration: 800, essential: true });
   }, []);
 
-  useImperativeHandle(ref, () => ({ focusUnit, fitAll, resize, panTo }), [
+  /** Encuadra un conjunto de puntos [lng, lat]; con uno solo, acerca el mapa a él. */
+  const fitPoints = useCallback((points: [number, number][]): void => {
+    const map = mapRef.current;
+    if (!map || points.length === 0) return;
+    if (points.length === 1) {
+      map.flyTo({ center: points[0], zoom: Math.max(map.getZoom(), 16), duration: 900, essential: true });
+      return;
+    }
+    const bounds = new maplibregl.LngLatBounds(points[0], points[0]);
+    points.forEach((point) => bounds.extend(point));
+    map.fitBounds(bounds, { padding: 70, maxZoom: 17, duration: 900 });
+  }, []);
+
+  useImperativeHandle(ref, () => ({ focusUnit, fitAll, resize, panTo, fitPoints }), [
     focusUnit,
     fitAll,
     resize,
     panTo,
+    fitPoints,
   ]);
   return containerRef;
 }

@@ -48,7 +48,8 @@ const PHONE_ICON_ID = 'mobile-phone-icon';
 
 /** Ícono de celular (contorno, como el de la referencia) dibujado en un canvas. */
 function phoneIconImage(): ImageData | null {
-  const scale = 2;
+  // Alta resolución (x4) para que se vea nítido al agrandarse con el zoom
+  const scale = 4;
   const w = 26 * scale;
   const h = 40 * scale;
   const canvas = document.createElement('canvas');
@@ -61,7 +62,7 @@ function phoneIconImage(): ImageData | null {
   const radius = 5 * scale;
   ctx.lineWidth = line;
   ctx.lineCap = 'round';
-  ctx.strokeStyle = '#c2410c';
+  ctx.strokeStyle = '#111827';
   ctx.fillStyle = '#ffffff';
   // Cuerpo
   ctx.beginPath();
@@ -69,7 +70,7 @@ function phoneIconImage(): ImageData | null {
   ctx.fill();
   ctx.stroke();
   // Pantalla en naranja suave
-  ctx.fillStyle = '#ffedd5';
+  ctx.fillStyle = '#ffffff';
   ctx.fillRect(pad + line / 2, pad + 7 * scale, w - pad * 2 - line, h - pad * 2 - 14 * scale);
   ctx.beginPath();
   ctx.moveTo(pad, pad + 7 * scale);
@@ -177,7 +178,7 @@ export function addMobileLayers(map: MapLibreMap): void {
     paint: { 'text-color': '#334155', 'text-halo-color': '#ffffff', 'text-halo-width': 1.4 },
   });
   const icon = phoneIconImage();
-  if (icon && !map.hasImage(PHONE_ICON_ID)) map.addImage(PHONE_ICON_ID, icon, { pixelRatio: 2 });
+  if (icon && !map.hasImage(PHONE_ICON_ID)) map.addImage(PHONE_ICON_ID, icon, { pixelRatio: 4 });
   // Ícono de celular con su nombre (o la placa del camión asignado) debajo
   map.addLayer({
     id: 'mobile-phone-point',
@@ -186,6 +187,8 @@ export function addMobileLayers(map: MapLibreMap): void {
     filter: ['==', ['get', 'kind'], 'phone'],
     layout: {
       'icon-image': PHONE_ICON_ID,
+      // Se adapta a la vista: pequeño al ver la ciudad, más grande al acercarse
+      'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.6, 13, 0.85, 16, 1.1, 18, 1.4],
       'icon-anchor': 'bottom',
       'icon-allow-overlap': true,
       'text-field': ['get', 'label'],
@@ -195,7 +198,7 @@ export function addMobileLayers(map: MapLibreMap): void {
       'text-offset': [0, 0.3],
       'text-allow-overlap': true,
     },
-    paint: { 'text-color': '#9a3412', 'text-halo-color': '#ffffff', 'text-halo-width': 1.6 },
+    paint: { 'text-color': '#111827', 'text-halo-color': '#ffffff', 'text-halo-width': 1.8 },
   });
 }
 

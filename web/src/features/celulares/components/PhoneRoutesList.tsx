@@ -131,8 +131,18 @@ export function PhoneRoutesList({ date, search }: Props) {
     setSelectedTrip(null);
     const base = result ?? state.current.data;
     setPhoneOverlay(base ? { ...base, devices: [device] } : null);
+    // Llevar el mapa al celular: encuadra su ruta y la del camión comparado;
+    // si no se movió, acerca el mapa a su última posición.
+    const points: [number, number][] = [
+      ...(device.phone?.road ?? []).flatMap((part) => part.coordinates),
+      ...(device.truck?.road ?? []).flatMap((part) => part.coordinates),
+    ];
     const last = device.phone?.last;
-    if (last) mapRef.current?.panTo?.([last.longitude, last.latitude]);
+    if (last) points.push([last.longitude, last.latitude]);
+    if (points.length > 0) {
+      // Tras dibujar la capa, para que el encuadre no compita con el render
+      window.setTimeout(() => mapRef.current?.fitPoints?.(points), 50);
+    }
   };
 
   const toggle = (device: MobileLiveDevice) => {
@@ -191,7 +201,8 @@ export function PhoneRoutesList({ date, search }: Props) {
         const stopDetail = Object.entries(device.stops)
           .map(([type, n]) => `${n} ${STOP_LABELS[type] ?? type}`)
           .join(' · ');
-        const hasRoute = (device.phone?.trail.length ?? 0) >= 2;
+        // Se puede ver en el mapa aunque el celular no se haya movido (su última posición)
+        const hasLocation = Boolean(device.phone?.last);
         const compareValue = device.deviceId in choices
           ? choices[device.deviceId] ?? ONLY_PHONE
           : base.assignedVehicleId ?? ONLY_PHONE;
@@ -282,9 +293,9 @@ export function PhoneRoutesList({ date, search }: Props) {
               <button
                 type="button"
                 className={`trip-action-btn ${isSelected ? 'is-active-btn' : ''}`}
-                disabled={(!hasRoute && !isSelected) || loadingId === device.deviceId}
+                disabled={(!hasLocation && !isSelected) || loadingId === device.deviceId}
                 onClick={() => toggle(base)}
-                title={hasRoute ? undefined : 'El celular no tiene recorrido en esta fecha'}
+                title={hasLocation ? undefined : 'El celular no envió posiciones en esta fecha'}
               >
                 <i className={`pi ${isSelected ? 'pi-times' : 'pi-map'}`} aria-hidden="true" />
                 <span>{isSelected ? 'Quitar del mapa' : 'Ver en mapa'}</span>

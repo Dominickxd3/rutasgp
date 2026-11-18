@@ -10,6 +10,8 @@ export interface FleetMapHandle {
   fitAll: () => void;
   resize: () => void;
   panTo?: (lngLat: [number, number]) => void;
+  /** Encuadra los puntos [lng, lat]; con uno solo, acerca el mapa a él. */
+  fitPoints?: (points: [number, number][]) => void;
 }
 export interface FleetMapProps {
   units: FleetUnit[];
