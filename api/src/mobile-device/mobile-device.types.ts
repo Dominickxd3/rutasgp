@@ -64,3 +64,34 @@ export interface MobileDeviceRow {
   assignedAt: string | null;
   active: boolean;
 }
+
+/** Recorrido en [lng, lat, epochMs] para dibujar directamente en MapLibre. */
+export type LiveTrackPoint = [number, number, number];
+
+export interface LiveTrack {
+  vehicleId: number;
+  plate: string;
+  last: { latitude: number; longitude: number; time: string; speedKmh: number | null } | null;
+  trail: LiveTrackPoint[];
+}
+
+/** GET /api/mobile/live: celulares con su recorrido y el de su camión asignado. */
+export interface MobileLiveDevice {
+  deviceId: string;
+  model: string | null;
+  lastUser: string | null;
+  lastSeenAt: string;
+  phone: LiveTrack | null;
+  /** Camión asignado en la web (GPS del proveedor). Null si no tiene. */
+  truck: LiveTrack | null;
+  comparison: import('./track-comparison').TrackComparison | null;
+  phoneKm: number;
+  /** Paradas que detectó el celular en el periodo, por tipo (inferidas, no confirman entregas). */
+  stops: Record<string, number>;
+}
+
+export interface MobileLiveResult {
+  from: string;
+  to: string;
+  devices: MobileLiveDevice[];
+}

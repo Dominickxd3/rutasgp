@@ -58,6 +58,25 @@ export class MobileDeviceController {
     return this.devices.list();
   }
 
+  @Get('live')
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({ summary: 'Recorrido de los celulares, el de su camión asignado y la comparación' })
+  live(@Query('from') fromValue?: string, @Query('to') toValue?: string) {
+    const to = toValue ? new Date(toValue) : new Date();
+    // Por defecto: desde las 00:00 de hoy en Lima (UTC-5)
+    const limaMidnight = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate(), 5));
+    const from = fromValue
+      ? new Date(fromValue)
+      : limaMidnight.getTime() > to.getTime() ? new Date(limaMidnight.getTime() - 86_400_000) : limaMidnight;
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from >= to) {
+      throw new BadRequestException('Rango de fechas inválido.');
+    }
+    if (to.getTime() - from.getTime() > 3 * 86_400_000) {
+      throw new BadRequestException('El rango máximo es de 3 días.');
+    }
+    return this.devices.live(from, to);
+  }
+
   @Put('devices/:deviceId/vehicle')
   @Header('Cache-Control', 'no-store')
   @ApiOperation({ summary: 'Asignar o quitar el camión de un celular' })

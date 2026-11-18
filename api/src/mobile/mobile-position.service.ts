@@ -3,6 +3,7 @@ import sql, { Transaction } from 'mssql/msnodesqlv8';
 
 import { DatabaseService } from '../database/database.service';
 import { GeofencesService } from '../geofences/geofences.service';
+import { phoneVehicleIdentity } from '../mobile-device/track-comparison';
 import { TripsService } from '../trips/trips.service';
 import type {
   MobilePositionBatch,
@@ -38,9 +39,12 @@ export class MobilePositionService {
 
     await transaction.begin(sql.ISOLATION_LEVEL.READ_COMMITTED);
     try {
+      // El recorrido pertenece al celular (su propio vehículo CEL-xxxx), tenga o no
+      // camión asignado: así nunca se mezcla con el GPS del camión y se pueden comparar.
+      const phone = phoneVehicleIdentity(batch.deviceId);
       const vehicle = await new sql.Request(transaction)
-        .input('providerId', sql.Int, batch.providerUnitId)
-        .input('plate', sql.VarChar(15), batch.plate)
+        .input('providerId', sql.Int, phone.providerUnitId)
+        .input('plate', sql.VarChar(15), phone.plate)
         .query<{ id: number }>(`
           DECLARE @id int;
           SELECT @id = id_vehiculo FROM dbo.Vehiculos WITH (UPDLOCK, HOLDLOCK)
@@ -102,6 +106,13 @@ export class MobilePositionService {
       await transaction.rollback().catch(() => undefined);
       throw error;
     }
+
+    // "Último contacto" en la web = último lote recibido (no solo la consulta de configuración)
+    await pool.request()
+      .input('deviceId', sql.VarChar(128), batch.deviceId)
+      .query('UPDATE dbo.GPS_DispositivosMoviles SET ultimo_contacto_utc = sysutcdatetime() WHERE device_id = @deviceId;')
+      .catch((error: unknown) =>
+        this.logger.warn(`No se pudo registrar el contacto del celular: ${error instanceof Error ? error.message : error}`));
 
     if (insertedPositions.length > 0) {
       const events = await this.geofences.evaluatePositions(

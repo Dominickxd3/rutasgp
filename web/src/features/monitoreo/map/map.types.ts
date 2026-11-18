@@ -4,6 +4,7 @@ import type { LatLng } from '../../../lib/geo';
 import type { FleetUnit } from '../../flota/types/fleet.types';
 import type { Geofence, GeofenceShape, GeofenceRecord } from '../../sede/types/geofence.types';
 import type { HistoryVisualization } from '../../historial/types/history.types';
+import type { MobileLiveResult } from '../../celulares/services/mobile-devices.service';
 export interface FleetMapHandle {
   focusUnit: (unit: FleetUnit) => void;
   fitAll: () => void;
@@ -23,6 +24,8 @@ export interface FleetMapProps {
   onGeofenceChange?: (geofence: Geofence) => void;
   history: HistoryVisualization | null;
   showGpsGaps: boolean;
+  /** Recorrido de celulares GPSCamiones y de su camión (null = ocultar). */
+  mobileLive?: MobileLiveResult | null;
 }
 export type GeofenceHandleKind =
   | 'center'

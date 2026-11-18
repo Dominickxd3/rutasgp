@@ -55,7 +55,8 @@ export function MobileDevicesPage() {
     try {
       const [deviceList, vehicleList] = await Promise.all([fetchMobileDevices(), fetchAssignableVehicles()]);
       setDevices(deviceList);
-      setVehicles(vehicleList.filter((vehicle) => vehicle.active));
+      // Los vehículos CEL-xxxx son los propios celulares, no camiones asignables
+      setVehicles(vehicleList.filter((vehicle) => vehicle.active && !vehicle.plate.startsWith('CEL-')));
       setDrafts({});
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo cargar la lista de celulares.');

@@ -65,3 +65,45 @@ export function assignMobileDevice(deviceId: string, vehicleId: number | null): 
     body: JSON.stringify({ vehicleId }),
   });
 }
+
+export type LiveTrackPoint = [number, number, number];
+
+export interface LiveTrack {
+  vehicleId: number;
+  plate: string;
+  last: { latitude: number; longitude: number; time: string; speedKmh: number | null } | null;
+  trail: LiveTrackPoint[];
+}
+
+export interface TrackComparison {
+  phoneKm: number;
+  truckKm: number;
+  pairedSamples: number;
+  averageSeparationM: number | null;
+  maxSeparationM: number | null;
+  togetherPct: number | null;
+  currentSeparationM: number | null;
+}
+
+export interface MobileLiveDevice {
+  deviceId: string;
+  model: string | null;
+  lastUser: string | null;
+  lastSeenAt: string;
+  phone: LiveTrack | null;
+  truck: LiveTrack | null;
+  comparison: TrackComparison | null;
+  phoneKm: number;
+  stops: Record<string, number>;
+}
+
+export interface MobileLiveResult {
+  from: string;
+  to: string;
+  devices: MobileLiveDevice[];
+}
+
+/** Recorrido de hoy (desde las 00:00 de Lima) de los celulares y sus camiones. */
+export function fetchMobileLive(signal?: AbortSignal): Promise<MobileLiveResult> {
+  return request<MobileLiveResult>('/mobile/live', { signal });
+}

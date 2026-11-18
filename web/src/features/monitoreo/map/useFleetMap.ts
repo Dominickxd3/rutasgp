@@ -41,6 +41,7 @@ import {
 } from './map.config';
 import type { FleetMapHandle, FleetMapProps } from './map.types';
 import { useMapGeofences } from './useMapGeofences';
+import { addMobileLayers, hasMobileLayers, setMobileSources } from './mobile.layers';
 maplibregl.setWorkerUrl(maplibreWorkerUrl);
 export function useFleetMap(
   {
@@ -56,6 +57,7 @@ export function useFleetMap(
     onGeofenceChange,
     history,
     showGpsGaps,
+    mobileLive = null,
   }: FleetMapProps,
   ref: ForwardedRef<FleetMapHandle>,
 ) {
@@ -87,6 +89,12 @@ export function useFleetMap(
   draftVerticesRef.current = draftVertices;
   placingShapeRef.current = placingShape;
   historyRef.current = history;
+  const mobileLiveRef = useRef(mobileLive);
+  mobileLiveRef.current = mobileLive;
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map && hasMobileLayers(map)) setMobileSources(map, mobileLive);
+  }, [mobileLive]);
   useEffect(() => {
     onSelectRef.current = onSelect;
   }, [onSelect]);
@@ -177,7 +185,9 @@ export function useFleetMap(
         addGeofenceLayers(map);
         addDraftLayers(map);
         addHistoryLayers(map);
+        addMobileLayers(map);
         addFleetLayers(map);
+        setMobileSources(map, mobileLiveRef.current);
         const source = map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
         source?.setData(buildFeatureCollection(unitsRef.current));
         syncGeofence(geofencesRef.current, geofenceRef.current);

@@ -3,12 +3,17 @@ import sql from 'mssql/msnodesqlv8';
 
 import { DatabaseService } from '../database/database.service';
 import { GeofencesService } from '../geofences/geofences.service';
+import { sqlRequest } from '../database/sql-request';
 import type {
+  LiveTrack,
+  LiveTrackPoint,
   MobileDeviceConfig,
   MobileDeviceRow,
   MobileEventBatch,
   MobileEventBatchResult,
+  MobileLiveResult,
 } from './mobile-device.types';
+import { compareTracks, downsample, phoneVehicleIdentity, trackKm, type TrackPoint } from './track-comparison';
 
 interface AssignedVehicleRow {
   id_vehiculo: number | null;
@@ -133,6 +138,10 @@ export class MobileDeviceService {
       throw error;
     }
 
+    await pool.request()
+      .input('deviceId', sql.VarChar(128), batch.deviceId)
+      .query('UPDATE dbo.GPS_DispositivosMoviles SET ultimo_contacto_utc = sysutcdatetime() WHERE device_id = @deviceId;')
+      .catch(() => undefined);
     this.logger.log(`Móvil ${batch.deviceId}: ${inserted} eventos nuevos, ${duplicates} repetidos.`);
     return { processedIds, inserted, duplicates };
   }
@@ -151,6 +160,122 @@ export class MobileDeviceService {
       ORDER BY d.ultimo_contacto_utc DESC;
     `);
     return result.recordset;
+  }
+
+  /**
+   * Recorrido de cada celular en el periodo, el de su camión asignado y la
+   * comparación entre ambos. Ambos salen de dbo.GPS_Posiciones: el celular como
+   * su propio vehículo CEL-xxxx y el camión como lo guarda el recolector GPS.
+   */
+  async live(from: Date, to: Date): Promise<MobileLiveResult> {
+    const pool = await this.database.pool;
+    const devices = (await pool.request().query<{
+      device_id: string; modelo: string | null; ultimo_usuario: string | null; ultimo_contacto_utc: Date;
+      id_vehiculo: number | null; placa: string | null;
+    }>(`
+      SELECT d.device_id, d.modelo, d.ultimo_usuario, d.ultimo_contacto_utc, d.id_vehiculo, v.placa
+      FROM dbo.GPS_DispositivosMoviles d
+      LEFT JOIN dbo.Vehiculos v ON v.id_vehiculo = d.id_vehiculo
+      WHERE d.activo = 1
+      ORDER BY d.ultimo_contacto_utc DESC;
+    `)).recordset;
+    if (devices.length === 0) return { from: from.toISOString(), to: to.toISOString(), devices: [] };
+
+    // Vehículo propio de cada celular (CEL-xxxx)
+    const identities = devices.map((d) => phoneVehicleIdentity(d.device_id));
+    const phoneRequest = pool.request();
+    identities.forEach((identity, i) => phoneRequest.input(`p${i}`, sql.Int, identity.providerUnitId));
+    const phoneVehicles = new Map<number, number>(); // providerUnitId -> id_vehiculo
+    (await phoneRequest.query<{ id_vehiculo: number; id_unidad_proveedor: number }>(`
+      SELECT id_vehiculo, id_unidad_proveedor FROM dbo.Vehiculos
+      WHERE id_unidad_proveedor IN (${identities.map((_, i) => `@p${i}`).join(',')});
+    `)).recordset.forEach((row) => phoneVehicles.set(Number(row.id_unidad_proveedor), Number(row.id_vehiculo)));
+
+    const vehicleIds = new Set<number>();
+    identities.forEach((identity) => {
+      const id = phoneVehicles.get(identity.providerUnitId);
+      if (id) vehicleIds.add(id);
+    });
+    devices.forEach((d) => { if (d.id_vehiculo) vehicleIds.add(Number(d.id_vehiculo)); });
+
+    // Posiciones del periodo de todos esos vehículos
+    const tracks = new Map<number, TrackPoint[]>();
+    if (vehicleIds.size > 0) {
+      const posRequest = sqlRequest(pool, 30_000).input('from', sql.DateTime2(3), from).input('to', sql.DateTime2(3), to);
+      const ids = [...vehicleIds];
+      ids.forEach((id, i) => posRequest.input(`v${i}`, sql.Int, id));
+      const rows = (await posRequest.query<{
+        id_vehiculo: number; latitud: number; longitud: number; velocidad_kmh: number | null; fecha_gps_utc: Date;
+      }>(`
+        SELECT id_vehiculo, latitud, longitud, velocidad_kmh, fecha_gps_utc
+        FROM dbo.GPS_Posiciones
+        WHERE id_vehiculo IN (${ids.map((_, i) => `@v${i}`).join(',')})
+          AND fecha_gps_utc >= @from AND fecha_gps_utc <= @to
+        ORDER BY id_vehiculo, fecha_gps_utc;
+      `)).recordset;
+      for (const row of rows) {
+        const list = tracks.get(Number(row.id_vehiculo)) ?? [];
+        list.push({
+          latitude: Number(row.latitud),
+          longitude: Number(row.longitud),
+          time: new Date(row.fecha_gps_utc).getTime(),
+          speedKmh: row.velocidad_kmh === null ? null : Number(row.velocidad_kmh),
+        });
+        tracks.set(Number(row.id_vehiculo), list);
+      }
+    }
+
+    // Paradas detectadas por cada celular en el periodo
+    const stops = new Map<string, Record<string, number>>();
+    (await pool.request()
+      .input('from', sql.DateTime2(3), from)
+      .input('to', sql.DateTime2(3), to)
+      .query<{ device_id: string; tipo_parada: string; total: number }>(`
+        SELECT device_id, tipo_parada, COUNT(*) AS total
+        FROM dbo.GPS_EventosMovil
+        WHERE tipo = 'STOP_END' AND tipo_parada IS NOT NULL
+          AND fecha_gps_utc >= @from AND fecha_gps_utc <= @to
+        GROUP BY device_id, tipo_parada;
+      `)).recordset.forEach((row) => {
+      const byType = stops.get(row.device_id) ?? {};
+      byType[row.tipo_parada] = Number(row.total);
+      stops.set(row.device_id, byType);
+    });
+
+    const toLive = (vehicleId: number | undefined, plate: string): LiveTrack | null => {
+      if (!vehicleId) return null;
+      const points = tracks.get(vehicleId) ?? [];
+      const last = points.at(-1);
+      return {
+        vehicleId,
+        plate,
+        last: last
+          ? { latitude: last.latitude, longitude: last.longitude, time: new Date(last.time).toISOString(), speedKmh: last.speedKmh }
+          : null,
+        trail: downsample(points, 1500).map((pt) => [pt.longitude, pt.latitude, pt.time] as LiveTrackPoint),
+      };
+    };
+
+    return {
+      from: from.toISOString(),
+      to: to.toISOString(),
+      devices: devices.map((d, i) => {
+        const phoneVehicleId = phoneVehicles.get(identities[i].providerUnitId);
+        const phonePoints = phoneVehicleId ? tracks.get(phoneVehicleId) ?? [] : [];
+        const truckPoints = d.id_vehiculo ? tracks.get(Number(d.id_vehiculo)) ?? [] : [];
+        return {
+          deviceId: d.device_id,
+          model: d.modelo,
+          lastUser: d.ultimo_usuario,
+          lastSeenAt: new Date(d.ultimo_contacto_utc).toISOString(),
+          phone: toLive(phoneVehicleId, identities[i].plate),
+          truck: d.id_vehiculo ? toLive(Number(d.id_vehiculo), d.placa?.trim() ?? '') : null,
+          comparison: d.id_vehiculo ? compareTracks(phonePoints, truckPoints) : null,
+          phoneKm: trackKm(phonePoints),
+          stops: stops.get(d.device_id) ?? {},
+        };
+      }),
+    };
   }
 
   /** Asigna (o quita con null) el camión de un celular. */

@@ -5,6 +5,8 @@ import { ProgressSpinner } from 'primereact/progressspinner';
 import { FleetMap } from './FleetMap';
 import { useAppState } from '../../../context/AppStateContext';
 import { MIN_POLYGON_VERTICES } from '../../../lib/geo';
+import { MobileComparisonCard } from '../../celulares/components/MobileComparisonCard';
+import { useMobileLive } from '../../celulares/hooks/useMobileLive';
 
 interface MonitoringMapProps {
   onToggleMobileNav?: () => void;
@@ -56,6 +58,10 @@ export function MonitoringMap(_props: MonitoringMapProps = {}) {
   const [filterOtherTrips, setFilterOtherTrips] = useState(false);
   const [followTruck, setFollowTruck] = useState(true);
   const [mapMode, setMapMode] = useState<'map' | 'satellite'>('map');
+  // Celulares GPSCamiones: recorrido en naranja junto al del camión en azul
+  const [showPhones, setShowPhones] = useState(true);
+  const phonesEnabled = showPhones && !isTripsRoute;
+  const mobileLive = useMobileLive(phonesEnabled);
 
   const showLoadingOverlay = !hasLoaded;
   const showErrorOverlay = hasLoaded && units.length === 0 && error !== null;
@@ -112,6 +118,17 @@ export function MonitoringMap(_props: MonitoringMapProps = {}) {
             />
             <span>Otros recorridos</span>
           </label>
+
+          {!isTripsRoute && (
+            <label className="map-legend-check">
+              <input
+                type="checkbox"
+                checked={showPhones}
+                onChange={(e) => setShowPhones(e.target.checked)}
+              />
+              <span>Celulares</span>
+            </label>
+          )}
 
           <span className="map-legend-tag map-legend-tag--parada">
             <span className="dot-amber" /> Parada
@@ -170,7 +187,16 @@ export function MonitoringMap(_props: MonitoringMapProps = {}) {
         onGeofenceChange={handleGeofenceChange}
         history={filterSelectedTrip ? history : null}
         showGpsGaps={showGpsGaps}
+        mobileLive={phonesEnabled ? mobileLive.data : null}
       />
+
+      {phonesEnabled && !selectedTrip && placingShape === null && (
+        <MobileComparisonCard
+          data={mobileLive.data}
+          error={mobileLive.error}
+          onFocus={(lngLat) => mapRef.current?.panTo?.(lngLat)}
+        />
+      )}
 
       {/* Standard bottom legend when not in trips view */}
       {!isTripsRoute && !history && (
