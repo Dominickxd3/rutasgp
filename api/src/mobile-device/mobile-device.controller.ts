@@ -104,4 +104,10 @@ export class MobileDeviceController {
     const { vehicleId, assignedBy } = parseVehicleAssignment(body);
     return this.devices.assignVehicle(parseDeviceId(deviceId), vehicleId, assignedBy);
   }
+
+  @Put('devices/:deviceId/status')
+  setStatus(@Param('deviceId') deviceId: string, @Body('active') active: unknown) {
+    if (typeof active !== 'boolean') throw new BadRequestException('active debe ser booleano.');
+    return this.devices.setActive(parseDeviceId(deviceId), active);
+  }
 }

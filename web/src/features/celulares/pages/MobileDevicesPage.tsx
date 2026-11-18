@@ -8,6 +8,7 @@ import { Message } from 'primereact/message';
 
 import {
   assignMobileDevice,
+  setMobileDeviceActive,
   fetchAssignableVehicles,
   fetchMobileDevices,
   type AssignableVehicle,
@@ -41,6 +42,7 @@ function formatAgo(value: string | null): string {
 
 export function MobileDevicesPage() {
   const [devices, setDevices] = useState<MobileDevice[]>([]);
+  const [showRetired, setShowRetired] = useState(false);
   const [vehicles, setVehicles] = useState<AssignableVehicle[]>([]);
   const [drafts, setDrafts] = useState<Record<string, number | null>>({});
   const [search, setSearch] = useState('');
@@ -79,13 +81,35 @@ export function MobileDevicesPage() {
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return devices;
-    return devices.filter((device) =>
+    const visible = devices.filter((device) => device.active !== showRetired);
+    if (!term) return visible;
+    return visible.filter((device) =>
       [device.deviceId, device.plate, device.model, device.lastUser]
         .some((value) => value?.toLowerCase().includes(term)));
-  }, [devices, search]);
+  }, [devices, search, showRetired]);
 
-  const pendingCount = devices.filter((device) => !device.plate).length;
+  const pendingCount = devices.filter((device) => device.active && !device.plate).length;
+
+  const changeStatus = async (device: MobileDevice) => {
+    if (device.active && !window.confirm('¿Retirar este celular y liberar su camión asignado?')) return;
+    setSavingId(device.deviceId);
+    setError(null);
+    setNotice(null);
+    try {
+      const updated = await setMobileDeviceActive(device.deviceId, !device.active);
+      setDevices((current) => current.map((item) => item.deviceId === updated.deviceId ? updated : item));
+      setDrafts((current) => {
+        const next = { ...current };
+        delete next[device.deviceId];
+        return next;
+      });
+      setNotice(updated.active ? 'Celular reactivado.' : 'Celular retirado.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo cambiar el estado.');
+    } finally {
+      setSavingId(null);
+    }
+  };
 
   /** Asigna el camión elegido; con `unassign` quita el camión del celular. */
   const save = async (device: MobileDevice, unassign = false) => {
@@ -149,9 +173,11 @@ export function MobileDevicesPage() {
 
         <div className="fleet-panel__subbar">
           <span className="fleet-panel__units-count">
-            {devices.length} {devices.length === 1 ? 'celular' : 'celulares'}
-            {pendingCount > 0 && ` · ${pendingCount} sin asignar`}
+            {filtered.length} {filtered.length === 1 ? 'celular' : 'celulares'}
+            {!showRetired && pendingCount > 0 && ` · ${pendingCount} sin asignar`}
           </span>
+          <Button label={showRetired ? 'Ver activos' : 'Ver retirados'} text size="small"
+            onClick={() => setShowRetired(!showRetired)} />
         </div>
 
         {error && <Message severity="error" text={error} className="device-panel__message" />}
@@ -168,8 +194,12 @@ export function MobileDevicesPage() {
           <div className="fleet-panel__empty">
             <i className="pi pi-mobile" aria-hidden="true" />
             <span>
-              {devices.length === 0
+              {showRetired && !devices.some((device) => !device.active)
+                ? 'No hay celulares retirados.'
+                : devices.length === 0
                 ? 'Aún no se conecta ningún celular. Aparecerá aquí cuando inicie sesión en la app GPSCamiones.'
+                : !showRetired && !devices.some((device) => device.active)
+                ? 'No hay celulares activos.'
                 : 'Ningún celular coincide con la búsqueda.'}
             </span>
           </div>
@@ -182,7 +212,7 @@ export function MobileDevicesPage() {
                 <div className="device-card__top">
                   <span className="device-card__code" title={device.deviceId}>{device.deviceId}</span>
                   <span className={`device-card__badge ${device.plate ? 'is-assigned' : 'is-pending'}`}>
-                    {device.plate ?? 'Sin asignar'}
+                    {device.active ? device.plate ?? 'Sin asignar' : 'Retirado'}
                   </span>
                 </div>
 
@@ -194,7 +224,7 @@ export function MobileDevicesPage() {
                   </span>
                 </div>
 
-                <div className="device-card__assign">
+                {device.active && <div className="device-card__assign">
                   <Dropdown
                     value={value}
                     options={vehicleOptions}
@@ -213,8 +243,8 @@ export function MobileDevicesPage() {
                     loading={savingId === device.deviceId}
                     onClick={() => void save(device)}
                   />
-                </div>
-                {device.plate && (
+                </div>}
+                {device.active && device.plate && (
                   <Button
                     label={`Desasignar ${device.plate}`}
                     icon="pi pi-times"
@@ -226,6 +256,10 @@ export function MobileDevicesPage() {
                     onClick={() => void save(device, true)}
                   />
                 )}
+                <Button label={device.active ? 'Retirar celular' : 'Reactivar celular'} text size="small"
+                  severity={device.active ? 'danger' : 'secondary'}
+                  disabled={savingId !== null}
+                  onClick={() => void changeStatus(device)} />
               </article>
             );
           })

@@ -406,6 +406,24 @@ export class MobileDeviceService {
   }
 
   /** Asigna (o quita con null) el camión de un celular. */
+  async setActive(deviceId: string, active: boolean): Promise<MobileDeviceRow> {
+    const pool = await this.database.pool;
+    await pool.request()
+      .input('deviceId', sql.VarChar(128), deviceId)
+      .input('active', sql.Bit, active)
+      .query(`
+        UPDATE dbo.GPS_DispositivosMoviles
+        SET activo = @active,
+            id_vehiculo = CASE WHEN @active = 0 THEN NULL ELSE id_vehiculo END,
+            asignado_por = CASE WHEN @active = 0 THEN NULL ELSE asignado_por END,
+            fecha_asignacion_utc = CASE WHEN @active = 0 THEN NULL ELSE fecha_asignacion_utc END
+        WHERE device_id = @deviceId;
+      `);
+    const row = (await this.list()).find((item) => item.deviceId === deviceId);
+    if (!row) throw new NotFoundException('Celular no encontrado.');
+    return row;
+  }
+
   async assignVehicle(deviceId: string, vehicleId: number | null, assignedBy: string | null): Promise<MobileDeviceRow> {
     const pool = await this.database.pool;
     if (vehicleId !== null) {
@@ -421,7 +439,7 @@ export class MobileDeviceService {
       .query(`
         UPDATE dbo.GPS_DispositivosMoviles
         SET id_vehiculo = @vehicleId, asignado_por = @assignedBy, fecha_asignacion_utc = sysutcdatetime()
-        WHERE device_id = @deviceId;
+        WHERE device_id = @deviceId AND activo = 1;
       `);
     if ((updated.rowsAffected[0] ?? 0) === 0) {
       throw new NotFoundException('El celular aún no se ha conectado a la web.');

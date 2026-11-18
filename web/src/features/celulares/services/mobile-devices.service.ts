@@ -59,6 +59,14 @@ export function fetchAssignableVehicles(): Promise<AssignableVehicle[]> {
   return request<AssignableVehicle[]>('/orders/vehicles');
 }
 
+export function setMobileDeviceActive(deviceId: string, active: boolean): Promise<MobileDevice> {
+  return request<MobileDevice>(`/mobile/devices/${encodeURIComponent(deviceId)}/status`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ active }),
+  });
+}
+
 export function assignMobileDevice(deviceId: string, vehicleId: number | null): Promise<MobileDevice> {
   return request<MobileDevice>(`/mobile/devices/${encodeURIComponent(deviceId)}/vehicle`, {
     method: 'PUT',
