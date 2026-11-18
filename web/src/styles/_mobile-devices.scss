@@ -1,0 +1,105 @@
+/* -------------------------------------------------------------------------- */
+/* Herramientas > Celulares GPS (panel lateral angosto)                        */
+/* -------------------------------------------------------------------------- */
+
+.device-panel__message.p-message {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.device-card {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  }
+}
+
+.device-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.device-card__code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.device-card__badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+
+  &.is-assigned {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  &.is-pending {
+    background: #fef3c7;
+    color: #92400e;
+  }
+}
+
+.device-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 0.75rem;
+  color: #64748b;
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  i {
+    font-size: 0.72rem;
+    color: #94a3b8;
+  }
+}
+
+.device-card__assign {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+
+  .p-button {
+    flex-shrink: 0;
+  }
+}
+
+.device-card__dropdown.p-dropdown {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.8rem;
+
+  .p-dropdown-label {
+    padding: 0.45rem 0.65rem;
+    font-size: 0.8rem;
+  }
+}

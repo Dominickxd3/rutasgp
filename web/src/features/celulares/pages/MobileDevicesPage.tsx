@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from 'primereact/button';
-import { Column } from 'primereact/column';
-import { DataTable } from 'primereact/datatable';
 import { Dropdown } from 'primereact/dropdown';
+import { IconField } from 'primereact/iconfield';
+import { InputIcon } from 'primereact/inputicon';
+import { InputText } from 'primereact/inputtext';
 import { Message } from 'primereact/message';
-import { Tag } from 'primereact/tag';
 
 import {
   assignMobileDevice,
@@ -26,10 +26,24 @@ function formatDate(value: string | null): string {
   return Number.isNaN(date.getTime()) ? '—' : dateFormat.format(date);
 }
 
+/** "hace 3 min", "hace 2 h", "hace 4 d". */
+function formatAgo(value: string | null): string {
+  if (!value) return '';
+  const ms = Date.now() - new Date(value).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return '';
+  const min = Math.floor(ms / 60_000);
+  if (min < 1) return 'hace un momento';
+  if (min < 60) return `hace ${min} min`;
+  const hours = Math.floor(min / 60);
+  if (hours < 24) return `hace ${hours} h`;
+  return `hace ${Math.floor(hours / 24)} d`;
+}
+
 export function MobileDevicesPage() {
   const [devices, setDevices] = useState<MobileDevice[]>([]);
   const [vehicles, setVehicles] = useState<AssignableVehicle[]>([]);
   const [drafts, setDrafts] = useState<Record<string, number | null>>({});
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +76,16 @@ export function MobileDevicesPage() {
     [vehicles],
   );
 
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return devices;
+    return devices.filter((device) =>
+      [device.deviceId, device.plate, device.model, device.lastUser]
+        .some((value) => value?.toLowerCase().includes(term)));
+  }, [devices, search]);
+
+  const pendingCount = devices.filter((device) => !device.plate).length;
+
   const save = async (device: MobileDevice) => {
     const vehicleId = drafts[device.deviceId] ?? null;
     setSavingId(device.deviceId);
@@ -77,8 +101,8 @@ export function MobileDevicesPage() {
       });
       setNotice(
         updated.plate
-          ? `Celular ${device.deviceId} asignado a ${updated.plate}. La app lo tomará cuando tenga señal.`
-          : `Se quitó el camión del celular ${device.deviceId}.`,
+          ? `Asignado a ${updated.plate}. La app lo tomará cuando tenga señal.`
+          : 'Se quitó el camión del celular.',
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar la asignación.');
@@ -90,74 +114,107 @@ export function MobileDevicesPage() {
   return (
     <section className="fleet-panel">
       <header className="fleet-panel__head">
-        <div className="fleet-panel__heading">
+        <div className="fleet-panel__title-row">
           <div>
-            <p className="fleet-panel__eyebrow">Herramientas</p>
-            <h2>Celulares GPS</h2>
+            <h2 className="fleet-panel__title">Celulares GPS</h2>
+            <p className="fleet-panel__subtitle">
+              Asigna a cada celular el camión que lleva
+            </p>
           </div>
           <Button
             icon="pi pi-refresh"
-            label="Actualizar"
-            size="small"
-            outlined
+            rounded
+            text
+            severity="secondary"
+            aria-label="Actualizar lista de celulares"
+            className={`fleet-panel__refresh-btn ${loading ? 'is-spinning' : ''}`}
             onClick={() => void load()}
-            loading={loading}
           />
         </div>
+
+        <div className="fleet-panel__search-row">
+          <IconField className="fleet-panel__search">
+            <InputIcon className="pi pi-search" />
+            <InputText
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar por código, placa o usuario..."
+              aria-label="Buscar celular"
+            />
+          </IconField>
+        </div>
+
+        <div className="fleet-panel__subbar">
+          <span className="fleet-panel__units-count">
+            {devices.length} {devices.length === 1 ? 'celular' : 'celulares'}
+            {pendingCount > 0 && ` · ${pendingCount} sin asignar`}
+          </span>
+        </div>
+
+        {error && <Message severity="error" text={error} className="device-panel__message" />}
+        {notice && <Message severity="success" text={notice} className="device-panel__message" />}
       </header>
 
-      <div style={{ padding: '0 1rem 1rem', display: 'grid', gap: '0.75rem' }}>
-        <p style={{ margin: 0 }}>
-          Cada celular con la app GPSCamiones aparece aquí después de iniciar sesión. Compara el código con el que
-          muestra la app en <strong>Administración → Código del celular</strong> y asígnale un camión.
-        </p>
-        {error && <Message severity="error" text={error} />}
-        {notice && <Message severity="success" text={notice} />}
-
-        <DataTable
-          value={devices}
-          dataKey="deviceId"
-          loading={loading}
-          size="small"
-          stripedRows
-          emptyMessage="Todavía no se ha conectado ningún celular."
-        >
-          <Column field="deviceId" header="Código del celular" />
-          <Column header="Modelo / usuario" body={(row: MobileDevice) => (
-            <span>{row.model ?? '—'}<br /><small>{row.lastUser ?? 'sin usuario'}</small></span>
-          )} />
-          <Column header="Último contacto" body={(row: MobileDevice) => formatDate(row.lastSeenAt)} />
-          <Column header="Estado" body={(row: MobileDevice) => (
-            row.plate
-              ? <Tag value={`Asignado: ${row.plate}`} severity="success" />
-              : <Tag value="Pendiente de asignar" severity="warning" />
-          )} />
-          <Column header="Camión" body={(row: MobileDevice) => {
-            const value = row.deviceId in drafts ? drafts[row.deviceId] : row.vehicleId;
-            const changed = row.deviceId in drafts && drafts[row.deviceId] !== row.vehicleId;
+      <div className="fleet-panel__list" role="list">
+        {loading && devices.length === 0 ? (
+          <div className="fleet-panel__loading">
+            <i className="pi pi-spin pi-spinner" aria-hidden="true" />
+            <span>Cargando celulares...</span>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="fleet-panel__empty">
+            <i className="pi pi-mobile" aria-hidden="true" />
+            <span>
+              {devices.length === 0
+                ? 'Aún no se conecta ningún celular. Aparecerá aquí cuando inicie sesión en la app GPSCamiones.'
+                : 'Ningún celular coincide con la búsqueda.'}
+            </span>
+          </div>
+        ) : (
+          filtered.map((device) => {
+            const value = device.deviceId in drafts ? drafts[device.deviceId] : device.vehicleId;
+            const changed = device.deviceId in drafts && drafts[device.deviceId] !== device.vehicleId;
             return (
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <Dropdown
-                  value={value}
-                  options={vehicleOptions}
-                  filter
-                  placeholder="Elegir camión"
-                  onChange={(event) =>
-                    setDrafts((current) => ({ ...current, [row.deviceId]: event.value as number | null }))}
-                  style={{ minWidth: '11rem' }}
-                />
-                <Button
-                  icon="pi pi-check"
-                  size="small"
-                  aria-label="Guardar asignación"
-                  disabled={!changed}
-                  loading={savingId === row.deviceId}
-                  onClick={() => void save(row)}
-                />
-              </div>
+              <article key={device.deviceId} role="listitem" className="device-card">
+                <div className="device-card__top">
+                  <span className="device-card__code" title={device.deviceId}>{device.deviceId}</span>
+                  <span className={`device-card__badge ${device.plate ? 'is-assigned' : 'is-pending'}`}>
+                    {device.plate ?? 'Sin asignar'}
+                  </span>
+                </div>
+
+                <div className="device-card__meta">
+                  <span><i className="pi pi-mobile" aria-hidden="true" /> {device.model ?? 'Modelo desconocido'}</span>
+                  <span><i className="pi pi-user" aria-hidden="true" /> {device.lastUser ?? 'sin usuario'}</span>
+                  <span title={formatDate(device.lastSeenAt)}>
+                    <i className="pi pi-clock" aria-hidden="true" /> {formatAgo(device.lastSeenAt) || formatDate(device.lastSeenAt)}
+                  </span>
+                </div>
+
+                <div className="device-card__assign">
+                  <Dropdown
+                    value={value}
+                    options={vehicleOptions}
+                    filter
+                    placeholder="Elegir camión"
+                    aria-label={`Camión del celular ${device.deviceId}`}
+                    className="device-card__dropdown"
+                    onChange={(event) =>
+                      setDrafts((current) => ({ ...current, [device.deviceId]: event.value as number | null }))}
+                  />
+                  <Button
+                    label="Guardar"
+                    icon="pi pi-check"
+                    size="small"
+                    disabled={!changed}
+                    loading={savingId === device.deviceId}
+                    onClick={() => void save(device)}
+                  />
+                </div>
+              </article>
             );
-          }} />
-        </DataTable>
+          })
+        )}
       </div>
     </section>
   );
