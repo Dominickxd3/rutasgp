@@ -124,3 +124,42 @@ export function downsample<T>(points: T[], max: number): T[] {
   const step = (points.length - 1) / (max - 1);
   return Array.from({ length: max }, (_, i) => points[Math.round(i * step)]);
 }
+
+/** Un nuevo tramo empieza tras esta pausa sin lecturas o tras un salto mayor a JUMP_M. */
+export const SEGMENT_GAP_MS = 3 * 60_000;
+export const SEGMENT_JUMP_M = 1_500;
+
+/**
+ * Prepara el recorrido para ajustarlo a las calles (map matching OSRM):
+ * lo divide en tramos continuos y descarta lecturas a menos de `spacingM` de la
+ * anterior (camión detenido o avanzando poco), que solo saturan al servicio.
+ * Determinista: los tramos ya procesados no cambian al llegar puntos nuevos,
+ * así OSRM reutiliza su caché.
+ */
+export function segmentsForMatching(points: TrackPoint[], spacingM = 40): TrackPoint[][] {
+  const sorted = [...points].sort((a, b) => a.time - b.time);
+  const segments: TrackPoint[][] = [];
+  let current: TrackPoint[] = [];
+  let lastRaw: TrackPoint | null = null;
+  // Cierra el tramo incluyendo su última lectura real, para que la línea llegue
+  // hasta donde el vehículo se detuvo o hasta su posición actual.
+  const close = () => {
+    const kept = current.at(-1);
+    // > 15 m: por debajo es deriva del GPS de un vehículo quieto, no avance
+    if (lastRaw && kept && kept !== lastRaw && distanceMeters(kept, lastRaw) > 15) current.push(lastRaw);
+    if (current.length >= 2) segments.push(current);
+  };
+  for (const point of sorted) {
+    if (lastRaw && (point.time - lastRaw.time > SEGMENT_GAP_MS || distanceMeters(lastRaw, point) > SEGMENT_JUMP_M)) {
+      close();
+      current = [point];
+      lastRaw = point;
+      continue;
+    }
+    const kept = current.at(-1);
+    if (!kept || distanceMeters(kept, point) >= spacingM) current.push(point);
+    lastRaw = point;
+  }
+  close();
+  return segments;
+}

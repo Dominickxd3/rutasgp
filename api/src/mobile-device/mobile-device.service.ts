@@ -5,6 +5,7 @@ import { DatabaseService } from '../database/database.service';
 import { GeofencesService } from '../geofences/geofences.service';
 import { sqlRequest } from '../database/sql-request';
 import type {
+  LiveStop,
   LiveTrack,
   LiveTrackPoint,
   MobileDeviceConfig,
@@ -13,7 +14,13 @@ import type {
   MobileEventBatchResult,
   MobileLiveResult,
 } from './mobile-device.types';
-import { compareTracks, downsample, phoneVehicleIdentity, trackKm, type TrackPoint } from './track-comparison';
+import { OsrmService } from '../history/osrm.service';
+import {
+  compareTracks, downsample, phoneVehicleIdentity, segmentsForMatching, trackKm, type TrackPoint,
+} from './track-comparison';
+
+/** Tiempo máximo que la consulta en vivo espera al ajuste a calles. */
+const ROAD_WAIT_MS = 12_000;
 
 interface AssignedVehicleRow {
   id_vehiculo: number | null;
@@ -25,10 +32,53 @@ interface AssignedVehicleRow {
 export class MobileDeviceService {
   private readonly logger = new Logger(MobileDeviceService.name);
 
+  /** Último recorrido ajustado a calles por vehículo, para no repetir OSRM en cada consulta. */
+  private readonly roadMemo = new Map<number, { key: string; road: LiveTrack['road']; pending: Promise<void> | null }>();
+
   constructor(
     private readonly database: DatabaseService,
     private readonly geofences: GeofencesService,
+    private readonly osrm: OsrmService,
   ) {}
+
+  /**
+   * Ajusta el recorrido a las calles con OSRM (mismo servicio que Historial).
+   * Espera como máximo ROAD_WAIT_MS: si OSRM tarda, devuelve el último trazado
+   * ya calculado y termina en segundo plano para la siguiente consulta.
+   */
+  private async roadFor(vehicleId: number, points: TrackPoint[]): Promise<LiveTrack['road']> {
+    const segments = segmentsForMatching(points);
+    if (segments.length === 0) return null;
+    const lastSegment = segments.at(-1)!;
+    const key = `${segments.length}:${segments.reduce((n, s) => n + s.length, 0)}:${lastSegment.at(-1)!.time}`;
+    const memo = this.roadMemo.get(vehicleId);
+    if (memo?.key === key && memo.road) return memo.road;
+
+    if (!memo?.pending) {
+      const pending = this.osrm
+        .matchSegments(segments.map((segment) => segment.map((pt) => ({
+          latitude: pt.latitude,
+          longitude: pt.longitude,
+          gpsDate: new Date(pt.time),
+        }))))
+        .then((result) => {
+          this.roadMemo.set(vehicleId, {
+            key,
+            road: result.map((part) => ({ coordinates: part.coordinates, kind: part.kind })),
+            pending: null,
+          });
+        })
+        .catch((error: unknown) => {
+          this.logger.warn(`No se pudo ajustar a calles el recorrido ${vehicleId}: ${error instanceof Error ? error.message : error}`);
+          const current = this.roadMemo.get(vehicleId);
+          if (current) current.pending = null;
+        });
+      this.roadMemo.set(vehicleId, { key: memo?.key ?? '', road: memo?.road ?? null, pending });
+    }
+    const waiting = this.roadMemo.get(vehicleId)!.pending;
+    if (waiting) await Promise.race([waiting, new Promise((resolve) => setTimeout(resolve, ROAD_WAIT_MS))]);
+    return this.roadMemo.get(vehicleId)?.road ?? null;
+  }
 
   /**
    * Registra el contacto del celular (si es nuevo queda "pendiente de asignar")
@@ -242,7 +292,34 @@ export class MobileDeviceService {
       stops.set(row.device_id, byType);
     });
 
-    const toLive = (vehicleId: number | undefined, plate: string): LiveTrack | null => {
+    // Ubicación de cada parada del celular, para marcarlas en el mapa
+    const stopLists = new Map<string, LiveStop[]>();
+    (await pool.request()
+      .input('from', sql.DateTime2(3), from)
+      .input('to', sql.DateTime2(3), to)
+      .query<{
+        device_id: string; tipo_parada: string; latitud: number; longitud: number;
+        inicio_utc: Date | null; duracion_s: number | null; nombre_lugar: string | null;
+      }>(`
+        SELECT TOP (1000) device_id, tipo_parada, latitud, longitud, inicio_utc, duracion_s, nombre_lugar
+        FROM dbo.GPS_EventosMovil
+        WHERE tipo = 'STOP_END' AND tipo_parada IS NOT NULL
+          AND fecha_gps_utc >= @from AND fecha_gps_utc <= @to
+        ORDER BY fecha_gps_utc;
+      `)).recordset.forEach((row) => {
+      const list = stopLists.get(row.device_id) ?? [];
+      list.push({
+        latitude: Number(row.latitud),
+        longitude: Number(row.longitud),
+        type: row.tipo_parada,
+        start: row.inicio_utc ? new Date(row.inicio_utc).toISOString() : null,
+        durationSeconds: row.duracion_s === null ? null : Number(row.duracion_s),
+        place: row.nombre_lugar,
+      });
+      stopLists.set(row.device_id, list);
+    });
+
+    const toLive = async (vehicleId: number | undefined, plate: string): Promise<LiveTrack | null> => {
       if (!vehicleId) return null;
       const points = tracks.get(vehicleId) ?? [];
       const last = points.at(-1);
@@ -253,28 +330,34 @@ export class MobileDeviceService {
           ? { latitude: last.latitude, longitude: last.longitude, time: new Date(last.time).toISOString(), speedKmh: last.speedKmh }
           : null,
         trail: downsample(points, 1500).map((pt) => [pt.longitude, pt.latitude, pt.time] as LiveTrackPoint),
+        road: await this.roadFor(vehicleId, points),
       };
     };
 
     return {
       from: from.toISOString(),
       to: to.toISOString(),
-      devices: devices.map((d, i) => {
+      devices: await Promise.all(devices.map(async (d, i) => {
         const phoneVehicleId = phoneVehicles.get(identities[i].providerUnitId);
         const phonePoints = phoneVehicleId ? tracks.get(phoneVehicleId) ?? [] : [];
         const truckPoints = d.id_vehiculo ? tracks.get(Number(d.id_vehiculo)) ?? [] : [];
+        const [phone, truck] = await Promise.all([
+          toLive(phoneVehicleId, identities[i].plate),
+          d.id_vehiculo ? toLive(Number(d.id_vehiculo), d.placa?.trim() ?? '') : Promise.resolve(null),
+        ]);
         return {
           deviceId: d.device_id,
           model: d.modelo,
           lastUser: d.ultimo_usuario,
           lastSeenAt: new Date(d.ultimo_contacto_utc).toISOString(),
-          phone: toLive(phoneVehicleId, identities[i].plate),
-          truck: d.id_vehiculo ? toLive(Number(d.id_vehiculo), d.placa?.trim() ?? '') : null,
+          phone,
+          truck,
           comparison: d.id_vehiculo ? compareTracks(phonePoints, truckPoints) : null,
           phoneKm: trackKm(phonePoints),
           stops: stops.get(d.device_id) ?? {},
+          stopList: stopLists.get(d.device_id) ?? [],
         };
-      }),
+      })),
     };
   }
 

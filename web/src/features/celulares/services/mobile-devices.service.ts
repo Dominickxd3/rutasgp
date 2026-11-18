@@ -73,6 +73,8 @@ export interface LiveTrack {
   plate: string;
   last: { latitude: number; longitude: number; time: string; speedKmh: number | null } | null;
   trail: LiveTrackPoint[];
+  /** Recorrido ajustado a calles (OSRM). Null mientras se calcula. */
+  road: Array<{ coordinates: [number, number][]; kind: 'matched' | 'estimated' }> | null;
 }
 
 export interface TrackComparison {
@@ -95,6 +97,7 @@ export interface MobileLiveDevice {
   comparison: TrackComparison | null;
   phoneKm: number;
   stops: Record<string, number>;
+  stopList: Array<{ latitude: number; longitude: number; type: string; start: string | null; durationSeconds: number | null; place: string | null }>;
 }
 
 export interface MobileLiveResult {

@@ -73,6 +73,21 @@ export interface LiveTrack {
   plate: string;
   last: { latitude: number; longitude: number; time: string; speedKmh: number | null } | null;
   trail: LiveTrackPoint[];
+  /**
+   * Recorrido ajustado a las calles (OSRM, como en Historial). `matched` sigue
+   * la vía con buena confianza; `estimated` es un tramo inferido. Null mientras
+   * se calcula o si OSRM no está disponible (se usa `trail`).
+   */
+  road: Array<{ coordinates: [number, number][]; kind: 'matched' | 'estimated' }> | null;
+}
+
+export interface LiveStop {
+  latitude: number;
+  longitude: number;
+  type: string;
+  start: string | null;
+  durationSeconds: number | null;
+  place: string | null;
 }
 
 /** GET /api/mobile/live: celulares con su recorrido y el de su camión asignado. */
@@ -88,6 +103,8 @@ export interface MobileLiveDevice {
   phoneKm: number;
   /** Paradas que detectó el celular en el periodo, por tipo (inferidas, no confirman entregas). */
   stops: Record<string, number>;
+  /** Paradas detectadas por el celular, para dibujarlas en el mapa. */
+  stopList: LiveStop[];
 }
 
 export interface MobileLiveResult {

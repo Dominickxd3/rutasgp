@@ -66,3 +66,29 @@ test('downsample conserva primero y último', () => {
   assert.equal(reduced[0], 0);
   assert.equal(reduced.at(-1), 999);
 });
+
+test('segmentsForMatching separa tramos por pausas y saltos, y adelgaza puntos', async () => {
+  const { segmentsForMatching } = await import('./track-comparison');
+  const first = Array.from({ length: 30 }, (_, i) => p(i * 5, i * 10)); // cada 10 m → se adelgaza a ~40 m
+  const afterPause = Array.from({ length: 10 }, (_, i) => p(1_000 + i * 10, 300 + i * 100)); // pausa > 3 min
+  const segments = segmentsForMatching([...first, ...afterPause]);
+  assert.equal(segments.length, 2);
+  assert.ok(segments[0].length < first.length);
+  assert.equal(segments[0][0].time, first[0].time);
+  assert.equal(segments[0].at(-1)!.time, first.at(-1)!.time); // conserva el final del tramo
+  assert.equal(segments[1].length, afterPause.length);
+});
+
+test('segmentsForMatching es estable al llegar puntos nuevos', async () => {
+  const { segmentsForMatching } = await import('./track-comparison');
+  const base = Array.from({ length: 40 }, (_, i) => p(i * 10, i * 60));
+  const before = segmentsForMatching(base)[0].slice(0, -1).map((pt) => pt.time);
+  const after = segmentsForMatching([...base, p(400, 2_400), p(410, 2_460)])[0].map((pt) => pt.time);
+  assert.deepEqual(after.slice(0, before.length), before);
+});
+
+test('segmentsForMatching ignora a un celular quieto', async () => {
+  const { segmentsForMatching } = await import('./track-comparison');
+  const still = Array.from({ length: 60 }, (_, i) => p(i * 5, (i % 3) * 4));
+  assert.equal(segmentsForMatching(still).length, 0);
+});
